@@ -155,6 +155,63 @@ describe("TFTree", () => {
     expect(t.transformPoint(new Vec3(1, 0, 0)).equals(new Vec3(0, 1, 0))).toBe(true);
   });
 
+  // ── LCA – non-root common ancestor ───────────────────────────────────────────
+
+  it("LCA is mid-level node, not root: cousins share a subtree ancestor", () => {
+    // world → robot → armBase → leftArm
+    //                          → rightArm
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(10, 0, 0));
+    tf.addFrame("armBase", "robot", translate(0, 0, 1));
+    tf.addFrame("leftArm", "armBase", translate(0, 1, 0));
+    tf.addFrame("rightArm", "armBase", translate(0, -1, 0));
+
+    // getTransform("leftArm","rightArm") expresses rightArm origin in leftArm coords.
+    // armBase origin in leftArm-local = (0,-1,0) (leftArm is +1 on Y from armBase).
+    // rightArm origin in armBase = (0,-1,0).
+    // rightArm origin in leftArm = (0,-1,0) - (0,1,0) = (0,-2,0).
+    const t = tf.getTransform("leftArm", "rightArm");
+    expect(t.transformPoint(Vec3.zero()).equals(new Vec3(0, -2, 0))).toBe(true);
+  });
+
+  it("LCA is root when frames are in separate subtrees at depth > 1", () => {
+    // world → branchA → leafA
+    //       → branchB → leafB
+    tf.addFrame("world");
+    tf.addFrame("branchA", "world", translate(5, 0, 0));
+    tf.addFrame("leafA", "branchA", translate(0, 2, 0));
+    tf.addFrame("branchB", "world", translate(0, 5, 0));
+    tf.addFrame("leafB", "branchB", translate(0, 0, 3));
+
+    // getTransform("leafA","leafB") expresses leafB origin in leafA coords.
+    // leafB world position: (0+0, 5+0, 0+3) = (0, 5, 3).
+    // leafA world position: (5+0, 0+2, 0+0) = (5, 2, 0).
+    // leafB in leafA coords: (0-5, 5-2, 3-0) = (-5, 3, 3).
+    const t = tf.getTransform("leafA", "leafB");
+    expect(t.transformPoint(Vec3.zero()).equals(new Vec3(-5, 3, 3))).toBe(true);
+  });
+
+  it("LCA traversal: up path uses inverted transforms, down path uses forward transforms", () => {
+    // Verify the direction rule: going UP inverts, going DOWN uses the stored transform.
+    // world → parent → child
+    // getTransform("child","parent") should be inv(child.transform), going up one step.
+    tf.addFrame("world");
+    tf.addFrame("parent", "world", translate(1, 2, 3));
+    tf.addFrame("child", "parent", translate(4, 5, 6));
+
+    // child→parent: up one step → uses inv(child.transform)
+    // = translate(-4,-5,-6)
+    // A point at (4,5,6) in child-local should map to (0,0,0) in parent-local.
+    const upT = tf.getTransform("child", "parent");
+    expect(upT.transformPoint(new Vec3(4, 5, 6)).equals(Vec3.zero())).toBe(true);
+
+    // parent→child: down one step → uses child.transform = translate(4,5,6)
+    // The child origin (0,0,0 in child-local) expressed in parent-local is (4,5,6),
+    // since child is offset +4,+5,+6 from parent.
+    const downT = tf.getTransform("parent", "child");
+    expect(downT.transformPoint(Vec3.zero()).equals(new Vec3(4, 5, 6))).toBe(true);
+  });
+
   // ── getTransform – combined rotation + translation ────────────────────────────
 
   it("robot drives forward (X) then neck rotates 45° around Z", () => {
