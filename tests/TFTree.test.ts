@@ -234,6 +234,54 @@ describe("TFTree", () => {
     expect(camOrigin.equals(new Vec3(2.5, 0, 0.8))).toBe(true);
   });
 
+  // ── removeFrame ──────────────────────────────────────────────────────────────
+
+  it("removeFrame() removes a leaf frame", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world");
+    tf.removeFrame("robot");
+    expect(tf.hasFrame("robot")).toBe(false);
+  });
+
+  it("removeFrame() removes a root frame when it has no children", () => {
+    tf.addFrame("island");
+    tf.removeFrame("island");
+    expect(tf.hasFrame("island")).toBe(false);
+    expect(tf.frameIds()).toHaveLength(0);
+  });
+
+  it("removeFrame() throws for an unknown frame", () => {
+    expect(() => tf.removeFrame("ghost")).toThrow(/not found/);
+  });
+
+  it("removeFrame() throws when the frame still has children", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world");
+    expect(() => tf.removeFrame("world")).toThrow(/child frames/);
+  });
+
+  it("removeFrame() allows re-registering a frame after deletion", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world");
+    tf.removeFrame("robot");
+    expect(() => tf.addFrame("robot", "world", translate(5, 0, 0))).not.toThrow();
+    expect(tf.hasFrame("robot")).toBe(true);
+  });
+
+  it("removeFrame() updates frameIds()", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world");
+    tf.removeFrame("robot");
+    expect(tf.frameIds()).toEqual(["world"]);
+  });
+
+  it("getTransform() throws after a frame has been removed", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world");
+    tf.removeFrame("robot");
+    expect(() => tf.getTransform("world", "robot")).toThrow(/not found/);
+  });
+
   // ── error handling ───────────────────────────────────────────────────────────
 
   it("getTransform throws for unknown 'from' frame", () => {
