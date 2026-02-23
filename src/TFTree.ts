@@ -1,7 +1,7 @@
 import { Transform } from "./math/Transform.js";
 import { Vec3 } from "./math/Vec3.js";
 import { Quaternion } from "./math/Quaternion.js";
-import { type FrameNode, type ITransformTree, type TFTreeJSON } from "./types.js";
+import { type FrameNode, type ITransformTree, type TFTreeJSON, type ChangeCallback } from "./types.js";
 import { CycleDetectedError } from "./CycleDetectedError.js";
 
 /**
@@ -26,6 +26,7 @@ export class TFTree implements ITransformTree {
   private readonly dirtySet = new Set<string>();
   private readonly worldTransformCache = new Map<string, Transform>();
   private readonly childrenMap = new Map<string, Set<string>>();
+  private readonly changeListeners = new Map<string, Set<ChangeCallback>>();
 
   // ── frame registration ─────────────────────────────────────────────────────
 
@@ -127,6 +128,8 @@ export class TFTree implements ITransformTree {
     if (parentId !== undefined) {
       this.childrenMap.get(parentId)?.delete(id);
     }
+    // Clean up change listeners.
+    this.changeListeners.delete(id);
   }
 
   // ── query ──────────────────────────────────────────────────────────────────
@@ -187,6 +190,33 @@ export class TFTree implements ITransformTree {
 
     // Use cached world transforms to compute the relative transform.
     return this.getWorldTransform(from).invert().compose(this.getWorldTransform(to));
+  }
+
+  // ── event subscription ─────────────────────────────────────────────────────
+
+  /**
+   * Subscribe to world-transform changes for `frameId`.
+   *
+   * The `callback` is fired whenever the world transform of `frameId` changes —
+   * either because `frameId` itself was updated via {@link updateTransform} /
+   * {@link updateFrame}, or because any of its ancestor frames was updated.
+   *
+   * @returns An unsubscribe function that removes the listener when called.
+   * @throws {Error} if `frameId` is not registered.
+   */
+  onChange(frameId: string, callback: ChangeCallback): () => void {
+    if (!this.frames.has(frameId)) {
+      throw new Error(`Frame "${frameId}" not found.`);
+    }
+    let listeners = this.changeListeners.get(frameId);
+    if (listeners === undefined) {
+      listeners = new Set();
+      this.changeListeners.set(frameId, listeners);
+    }
+    listeners.add(callback);
+    return () => {
+      this.changeListeners.get(frameId)?.delete(callback);
+    };
   }
 
   // ── serialization ──────────────────────────────────────────────────────────
@@ -268,6 +298,13 @@ export class TFTree implements ITransformTree {
   private markSubtreeDirty(id: string): void {
     this.dirtySet.add(id);
     this.worldTransformCache.delete(id);
+    // Notify subscribers watching this frame.
+    const listeners = this.changeListeners.get(id);
+    if (listeners !== undefined) {
+      for (const cb of listeners) {
+        cb(id);
+      }
+    }
     for (const childId of this.childrenMap.get(id) ?? []) {
       this.markSubtreeDirty(childId);
     }

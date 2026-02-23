@@ -74,6 +74,14 @@ export interface BufferedTFTreeOptions {
 }
 
 /**
+ * Callback invoked when a frame's world transform changes — either because the
+ * frame itself was updated or because one of its ancestors was updated.
+ *
+ * @param frameId The id of the frame whose world transform has changed.
+ */
+export type ChangeCallback = (frameId: string) => void;
+
+/**
  * Public API of the transform-tree engine.
  */
 export interface ITransformTree {
@@ -112,4 +120,22 @@ export interface ITransformTree {
    * @param to   Target frame id.
    */
   getTransform(from: string, to: string): Transform;
+
+  /**
+   * Subscribe to world-transform changes for `frameId`.
+   *
+   * The `callback` is invoked whenever the world transform of `frameId`
+   * changes — either because `frameId` itself was updated via
+   * {@link updateFrame} / {@link updateTransform}, or because any of its
+   * ancestor frames was updated.
+   *
+   * @param frameId  The frame to observe.
+   * @param callback Function called with `frameId` each time the frame's
+   *                 world transform changes.
+   * @returns        An unsubscribe function that removes the listener when
+   *                 called.
+   *
+   * @throws {Error} if `frameId` is not registered.
+   */
+  onChange(frameId: string, callback: ChangeCallback): () => void;
 }
