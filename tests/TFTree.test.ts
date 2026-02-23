@@ -282,6 +282,51 @@ describe("TFTree", () => {
     expect(() => tf.getTransform("world", "robot")).toThrow(/not found/);
   });
 
+  // ── caching & dirty flags ────────────────────────────────────────────────────
+
+  it("getTransform() returns consistent results on repeated calls (cache correctness)", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(2, 0, 0));
+    tf.addFrame("camera", "robot", translate(0, 0, 1));
+
+    const t1 = tf.getTransform("world", "camera");
+    const t2 = tf.getTransform("world", "camera");
+
+    expect(t1.equals(t2)).toBe(true);
+    expect(t1.transformPoint(Vec3.zero()).equals(new Vec3(2, 0, 1))).toBe(true);
+  });
+
+  it("updateTransform() invalidates cached world transform of descendants", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(1, 0, 0));
+    tf.addFrame("camera", "robot", translate(0, 0, 1));
+
+    // Warm the cache.
+    expect(tf.getTransform("world", "camera").transformPoint(Vec3.zero()).equals(new Vec3(1, 0, 1))).toBe(true);
+
+    // Move the robot – camera should follow.
+    tf.updateTransform("robot", translate(5, 0, 0));
+
+    expect(tf.getTransform("world", "camera").transformPoint(Vec3.zero()).equals(new Vec3(5, 0, 1))).toBe(true);
+  });
+
+  it("updateTransform() only dirties the updated subtree, not unrelated frames", () => {
+    tf.addFrame("world");
+    tf.addFrame("arm", "world", translate(1, 0, 0));
+    tf.addFrame("leg", "world", translate(0, 1, 0));
+
+    // Warm the cache for both branches.
+    expect(tf.getTransform("world", "arm").transformPoint(Vec3.zero()).equals(new Vec3(1, 0, 0))).toBe(true);
+    expect(tf.getTransform("world", "leg").transformPoint(Vec3.zero()).equals(new Vec3(0, 1, 0))).toBe(true);
+
+    // Update only arm.
+    tf.updateTransform("arm", translate(3, 0, 0));
+
+    // arm is updated; leg is unchanged.
+    expect(tf.getTransform("world", "arm").transformPoint(Vec3.zero()).equals(new Vec3(3, 0, 0))).toBe(true);
+    expect(tf.getTransform("world", "leg").transformPoint(Vec3.zero()).equals(new Vec3(0, 1, 0))).toBe(true);
+  });
+
   // ── error handling ───────────────────────────────────────────────────────────
 
   it("getTransform throws for unknown 'from' frame", () => {

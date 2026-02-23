@@ -21,6 +21,9 @@ import { CycleDetectedError } from "./CycleDetectedError.js";
  */
 export class TFTree implements ITransformTree {
   private readonly frames = new Map<string, FrameNode>();
+  private readonly dirtySet = new Set<string>();
+  private readonly worldTransformCache = new Map<string, Transform>();
+  private readonly childrenMap = new Map<string, Set<string>>();
 
   // ── frame registration ─────────────────────────────────────────────────────
 
@@ -62,6 +65,14 @@ export class TFTree implements ITransformTree {
     }
 
     this.frames.set(id, { id, parentId, transform });
+    this.dirtySet.add(id);
+    // Register in children map.
+    if (!this.childrenMap.has(id)) {
+      this.childrenMap.set(id, new Set());
+    }
+    if (parentId !== undefined) {
+      this.childrenMap.get(parentId)!.add(id);
+    }
   }
 
   /**
@@ -75,6 +86,7 @@ export class TFTree implements ITransformTree {
       throw new Error(`Frame "${id}" not found.`);
     }
     this.frames.set(id, { ...frame, transform });
+    this.markSubtreeDirty(id);
   }
 
   /**
@@ -104,7 +116,15 @@ export class TFTree implements ITransformTree {
         );
       }
     }
+    const { parentId } = this.frames.get(id)!;
     this.frames.delete(id);
+    this.worldTransformCache.delete(id);
+    this.dirtySet.delete(id);
+    // Clean up children map.
+    this.childrenMap.delete(id);
+    if (parentId !== undefined) {
+      this.childrenMap.get(parentId)?.delete(id);
+    }
   }
 
   // ── query ──────────────────────────────────────────────────────────────────
@@ -150,11 +170,9 @@ export class TFTree implements ITransformTree {
     );
 
     let lcaId: string | undefined;
-    let fromLcaIdx = -1;
     for (let i = 0; i < fromChain.length; i++) {
       if (toChainMap.has(fromChain[i])) {
         lcaId = fromChain[i];
-        fromLcaIdx = i;
         break;
       }
     }
@@ -164,29 +182,48 @@ export class TFTree implements ITransformTree {
         `Frames "${from}" and "${to}" are not connected in the same tree.`,
       );
     }
-    const toLcaIdx = toChainMap.get(lcaId)!;
 
-    // Build the transform from `from` up to LCA.
-    let upTransform = Transform.identity();
-    for (let i = 0; i < fromLcaIdx; i++) {
-      const frameId = fromChain[i];
-      const frame = this.frames.get(frameId)!;
-      // Going up means inverting this frame's transform.
-      upTransform = frame.transform.invert().compose(upTransform);
-    }
-
-    // Build the transform from LCA down to `to`.
-    let downTransform = Transform.identity();
-    const toChainToLca = toChain.slice(0, toLcaIdx).reverse();
-    for (const frameId of toChainToLca) {
-      const frame = this.frames.get(frameId)!;
-      downTransform = downTransform.compose(frame.transform);
-    }
-
-    return upTransform.compose(downTransform);
+    // Use cached world transforms to compute the relative transform.
+    return this.getWorldTransform(from).invert().compose(this.getWorldTransform(to));
   }
 
   // ── private helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Mark a frame and all of its descendants as dirty, invalidating their
+   * cached world transforms so they are recomputed on next access.
+   */
+  private markSubtreeDirty(id: string): void {
+    this.dirtySet.add(id);
+    this.worldTransformCache.delete(id);
+    for (const childId of this.childrenMap.get(id) ?? []) {
+      this.markSubtreeDirty(childId);
+    }
+  }
+
+  /**
+   * Returns the cached world transform for `id`, recomputing and caching it
+   * if the frame is dirty.  The world transform is the accumulated transform
+   * from the subtree root down to this frame.
+   */
+  private getWorldTransform(id: string, visiting = new Set<string>()): Transform {
+    if (!this.dirtySet.has(id)) {
+      const cached = this.worldTransformCache.get(id);
+      if (cached !== undefined) return cached;
+    }
+    if (visiting.has(id)) {
+      throw new CycleDetectedError(id);
+    }
+    visiting.add(id);
+    const frame = this.frames.get(id)!;
+    const worldTransform =
+      frame.parentId === undefined
+        ? frame.transform
+        : this.getWorldTransform(frame.parentId, visiting).compose(frame.transform);
+    this.worldTransformCache.set(id, worldTransform);
+    this.dirtySet.delete(id);
+    return worldTransform;
+  }
 
   /**
    * Returns the ordered list of frame ids from `id` up to (and including)
