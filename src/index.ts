@@ -12,4 +12,5 @@ export type {
   TFTreeJSON,
   TransformStamped,
   BufferedTFTreeOptions,
+  ChangeCallback,
 } from "./types.js";

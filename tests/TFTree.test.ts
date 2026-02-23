@@ -516,4 +516,93 @@ describe("TFTree", () => {
     const json = tf.toJSON();
     expect(json.frames).toHaveLength(0);
   });
+
+  // ── onChange ─────────────────────────────────────────────────────────────────
+
+  it("onChange() fires when the watched frame is directly updated", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(1, 0, 0));
+
+    const calls: string[] = [];
+    tf.onChange("robot", (id) => calls.push(id));
+
+    tf.updateTransform("robot", translate(2, 0, 0));
+    expect(calls).toEqual(["robot"]);
+  });
+
+  it("onChange() fires when an ancestor frame is updated", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(1, 0, 0));
+    tf.addFrame("camera", "robot", translate(0, 0, 1));
+
+    const calls: string[] = [];
+    tf.onChange("camera", (id) => calls.push(id));
+
+    // Updating robot (ancestor of camera) should notify camera.
+    tf.updateTransform("robot", translate(5, 0, 0));
+    expect(calls).toEqual(["camera"]);
+  });
+
+  it("onChange() does not fire for unrelated frame updates", () => {
+    tf.addFrame("world");
+    tf.addFrame("arm", "world", translate(1, 0, 0));
+    tf.addFrame("leg", "world", translate(0, 1, 0));
+
+    const calls: string[] = [];
+    tf.onChange("arm", (id) => calls.push(id));
+
+    tf.updateTransform("leg", translate(0, 2, 0));
+    expect(calls).toHaveLength(0);
+  });
+
+  it("onChange() unsubscribe function stops further notifications", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world");
+
+    const calls: string[] = [];
+    const off = tf.onChange("robot", (id) => calls.push(id));
+
+    tf.updateTransform("robot", translate(1, 0, 0));
+    expect(calls).toHaveLength(1);
+
+    off();
+    tf.updateTransform("robot", translate(2, 0, 0));
+    expect(calls).toHaveLength(1); // No new call after unsubscribing.
+  });
+
+  it("onChange() supports multiple callbacks for the same frame", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world");
+
+    const calls1: string[] = [];
+    const calls2: string[] = [];
+    tf.onChange("robot", (id) => calls1.push(id));
+    tf.onChange("robot", (id) => calls2.push(id));
+
+    tf.updateTransform("robot", translate(1, 0, 0));
+    expect(calls1).toEqual(["robot"]);
+    expect(calls2).toEqual(["robot"]);
+  });
+
+  it("onChange() throws when frameId is not registered", () => {
+    expect(() => tf.onChange("ghost", () => {})).toThrow(/not found/);
+  });
+
+  it("onChange() does not fire after the watched frame is removed", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world");
+    tf.addFrame("camera", "robot");
+
+    const calls: string[] = [];
+    tf.onChange("camera", (id) => calls.push(id));
+
+    // Remove camera first (leaf), then robot.
+    tf.removeFrame("camera");
+    tf.removeFrame("robot");
+
+    // Re-add robot: no listeners should survive the removal.
+    tf.addFrame("robot", "world", translate(9, 0, 0));
+    tf.updateTransform("robot", translate(1, 0, 0));
+    expect(calls).toHaveLength(0);
+  });
 });
