@@ -75,6 +75,20 @@ describe("TFTree", () => {
     expect(() => tf.updateTransform("ghost", Transform.identity())).toThrow(/not found/);
   });
 
+  // ── updateFrame ──────────────────────────────────────────────────────────────
+
+  it("updateFrame() changes the stored transform", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(1, 0, 0));
+    tf.updateFrame("robot", translate(3, 0, 0));
+    const result = tf.getTransform("world", "robot");
+    expect(result.transformPoint(Vec3.zero()).equals(new Vec3(3, 0, 0))).toBe(true);
+  });
+
+  it("updateFrame() throws for unknown frame", () => {
+    expect(() => tf.updateFrame("ghost", Transform.identity())).toThrow(/not found/);
+  });
+
   // ── getTransform – same frame ────────────────────────────────────────────────
 
   it("getTransform() of the same frame is identity", () => {
