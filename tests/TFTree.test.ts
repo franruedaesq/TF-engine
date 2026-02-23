@@ -76,7 +76,61 @@ describe("TFTree", () => {
     expect(() => tf.updateTransform("ghost", Transform.identity())).toThrow(/not found/);
   });
 
-  // ── updateFrame ──────────────────────────────────────────────────────────────
+  // ── updateTransforms (batch) ─────────────────────────────────────────────────
+
+  it("updateTransforms() applies all transforms in the batch", () => {
+    tf.addFrame("world");
+    tf.addFrame("arm", "world", translate(1, 0, 0));
+    tf.addFrame("leg", "world", translate(0, 1, 0));
+
+    tf.updateTransforms({
+      arm: translate(3, 0, 0),
+      leg: translate(0, 4, 0),
+    });
+
+    expect(tf.getTransform("world", "arm").transformPoint(Vec3.zero()).equals(new Vec3(3, 0, 0))).toBe(true);
+    expect(tf.getTransform("world", "leg").transformPoint(Vec3.zero()).equals(new Vec3(0, 4, 0))).toBe(true);
+  });
+
+  it("updateTransforms() throws for any unknown frame id", () => {
+    tf.addFrame("world");
+    expect(() =>
+      tf.updateTransforms({ world: translate(1, 0, 0), ghost: translate(0, 0, 0) }),
+    ).toThrow(/not found/);
+  });
+
+  it("updateTransforms() skips redundant dirty-marking for descendant frames", () => {
+    // world → base → shoulder → wrist
+    tf.addFrame("world");
+    tf.addFrame("base", "world", translate(1, 0, 0));
+    tf.addFrame("shoulder", "base", translate(0, 1, 0));
+    tf.addFrame("wrist", "shoulder", translate(0, 0, 1));
+
+    // Warm the cache so we can verify invalidation.
+    expect(tf.getTransform("world", "wrist").transformPoint(Vec3.zero()).equals(new Vec3(1, 1, 1))).toBe(true);
+
+    // Batch update base and shoulder together.
+    tf.updateTransforms({
+      base: translate(2, 0, 0),
+      shoulder: translate(0, 2, 0),
+    });
+
+    // All descendants of base (including shoulder and wrist) must reflect new values.
+    expect(tf.getTransform("world", "shoulder").transformPoint(Vec3.zero()).equals(new Vec3(2, 2, 0))).toBe(true);
+    expect(tf.getTransform("world", "wrist").transformPoint(Vec3.zero()).equals(new Vec3(2, 2, 1))).toBe(true);
+  });
+
+  it("updateTransforms() with an empty object is a no-op", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(1, 0, 0));
+
+    // Warm cache.
+    expect(tf.getTransform("world", "robot").transformPoint(Vec3.zero()).equals(new Vec3(1, 0, 0))).toBe(true);
+
+    tf.updateTransforms({});
+
+    expect(tf.getTransform("world", "robot").transformPoint(Vec3.zero()).equals(new Vec3(1, 0, 0))).toBe(true);
+  });
 
   it("updateFrame() changes the stored transform", () => {
     tf.addFrame("world");

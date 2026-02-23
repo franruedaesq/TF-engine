@@ -101,6 +101,46 @@ export class TFTree implements ITransformTree {
   }
 
   /**
+   * Batch-update the transforms of multiple existing frames in a single call.
+   *
+   * More efficient than calling {@link updateTransform} repeatedly when
+   * several frames share an ancestor: dirty-marking is skipped for any frame
+   * whose ancestor is also included in the same batch, preventing redundant
+   * subtree traversals.
+   *
+   * @throws {Error} if any id in `updates` is not registered.
+   */
+  updateTransforms(updates: Record<string, Transform>): void {
+    // First pass: apply all transform changes (validates every id up-front).
+    for (const [id, transform] of Object.entries(updates)) {
+      const frame = this.frames.get(id);
+      if (frame === undefined) {
+        throw new Error(`Frame "${id}" not found.`);
+      }
+      this.frames.set(id, { ...frame, transform });
+    }
+
+    // Second pass: mark subtrees dirty, but skip frames whose ancestor is
+    // also being updated in this batch – the ancestor's markSubtreeDirty
+    // call will already cover those descendants.
+    const ids = new Set(Object.keys(updates));
+    for (const id of ids) {
+      let parentId = this.frames.get(id)?.parentId;
+      let ancestorUpdated = false;
+      while (parentId !== undefined) {
+        if (ids.has(parentId)) {
+          ancestorUpdated = true;
+          break;
+        }
+        parentId = this.frames.get(parentId)?.parentId;
+      }
+      if (!ancestorUpdated) {
+        this.markSubtreeDirty(id);
+      }
+    }
+  }
+
+  /**
    * Remove a registered frame from the tree.
    *
    * @param id Identifier of the frame to remove.
