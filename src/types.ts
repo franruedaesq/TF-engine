@@ -47,6 +47,15 @@ export interface ITransformTree {
   updateFrame(id: string, transform: Transform): void;
 
   /**
+   * Remove a registered frame from the tree.
+   *
+   * @param id Identifier of the frame to remove.
+   * @throws {Error} if `id` is not registered.
+   * @throws {Error} if the frame still has child frames registered.
+   */
+  removeFrame(id: string): void;
+
+  /**
    * Compute the transform that maps points expressed in `from` to the
    * coordinate system of `to`.
    *

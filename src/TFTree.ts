@@ -86,6 +86,27 @@ export class TFTree implements ITransformTree {
     this.updateTransform(id, transform);
   }
 
+  /**
+   * Remove a registered frame from the tree.
+   *
+   * @param id Identifier of the frame to remove.
+   * @throws {Error} if `id` is not registered.
+   * @throws {Error} if the frame still has child frames registered.
+   */
+  removeFrame(id: string): void {
+    if (!this.frames.has(id)) {
+      throw new Error(`Frame "${id}" not found.`);
+    }
+    for (const frame of this.frames.values()) {
+      if (frame.parentId === id) {
+        throw new Error(
+          `Cannot remove frame "${id}": it still has child frames. Remove children first.`,
+        );
+      }
+    }
+    this.frames.delete(id);
+  }
+
   // ── query ──────────────────────────────────────────────────────────────────
 
   /** Returns true if the given frame id is registered. */
