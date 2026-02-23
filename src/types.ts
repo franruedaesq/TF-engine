@@ -50,6 +50,30 @@ export interface TFTreeJSON {
 }
 
 /**
+ * A transform paired with a wall-clock (or monotonic) timestamp in milliseconds.
+ * Used by {@link BufferedTFTree} to record historical transforms.
+ */
+export interface TransformStamped {
+  /** Timestamp in milliseconds (e.g. `Date.now()`). */
+  readonly timestamp: number;
+  readonly transform: Transform;
+}
+
+/**
+ * Construction options for {@link BufferedTFTree}.
+ */
+export interface BufferedTFTreeOptions {
+  /**
+   * Maximum age (in milliseconds) of buffered transform entries.
+   * Entries older than `latestTimestamp − maxBufferDuration` are pruned
+   * automatically on each {@link BufferedTFTree.setTransform} call.
+   *
+   * @default 10_000  (10 seconds)
+   */
+  maxBufferDuration?: number;
+}
+
+/**
  * Public API of the transform-tree engine.
  */
 export interface ITransformTree {
