@@ -4,10 +4,11 @@ A TypeScript library for managing spatial transforms between named reference fra
 
 ## Features
 
-- **`TFTree`** – register frames, update transforms, and query the relative transform between any two frames.
+- **`TFTree`** – register/remove frames, update transforms (single or batch), query the relative transform between any two frames, subscribe to frame-change events, and serialize/deserialize the whole tree.
+- **`BufferedTFTree`** – extends `TFTree` with a time-stamped transform history; interpolates (LERP + SLERP) between historical samples so you can query "where was frame X at time T?".
 - **`Transform`** – immutable rigid-body transform (translation + rotation) backed by gl-matrix 4×4 matrices.
-- **`Vec3`** – immutable 3-component vector with common arithmetic helpers.
-- **`Quaternion`** – immutable unit quaternion with factory helpers (`fromAxisAngle`, `fromEulerXYZ`).
+- **`Vec3`** – immutable 3-component vector with common arithmetic helpers including linear interpolation (`lerp`).
+- **`Quaternion`** – immutable unit quaternion with factory helpers (`fromAxisAngle`, `fromEulerXYZ`) and spherical linear interpolation (`slerp`).
 - **`CycleDetectedError`** – typed error thrown when a cycle is detected in the frame graph.
 - Full TypeScript type declarations included.
 
@@ -54,9 +55,14 @@ const tf = new TFTree();
 | `addFrame(id, parentId?, transform?)` | Register a new frame. Omit `parentId` for a root frame. Defaults to the identity transform. Throws if the frame already exists, the parent is not found, or a cycle would be introduced. |
 | `updateTransform(id, transform)` | Replace the stored transform of an existing frame. Throws if the frame is not found. |
 | `updateFrame(id, transform)` | Alias for `updateTransform`. |
+| `updateTransforms(updates)` | Batch-replace the transforms of multiple existing frames in one call. More efficient than repeated `updateTransform` calls when several frames share an ancestor. `updates` is a `Record<string, Transform>`. Throws if any id is not registered. |
+| `removeFrame(id)` | Remove a registered frame. Throws if the frame is not found or still has child frames (remove children first). |
 | `hasFrame(id)` | Returns `true` if the frame is registered. |
 | `frameIds()` | Returns an array of all registered frame ids. |
 | `getTransform(from, to)` | Returns the `Transform` that maps points expressed in `from` to the coordinate system of `to`. Throws if either frame is unknown or the frames are not connected. |
+| `onChange(frameId, callback)` | Subscribe to world-transform changes for `frameId`. The callback receives `frameId` whenever the frame's world transform changes (due to the frame itself or any ancestor being updated). Returns an **unsubscribe function**. Throws if `frameId` is not registered. |
+| `toJSON()` | Serialize the entire tree to a plain JSON-compatible `TFTreeJSON` object. Frames are emitted in insertion order (parents before children). |
+| `TFTree.fromJSON(data)` | *(static)* Reconstruct a `TFTree` from a `TFTreeJSON` object produced by `toJSON`. |
 
 ### `Transform`
 
@@ -82,7 +88,7 @@ Vec3.zero()
 Vec3.fromArray([x, y, z])
 ```
 
-Operations: `add`, `subtract`, `scale`, `length`, `normalize`, `dot`, `cross`, `equals`, `toArray`, `toString`.
+Operations: `add`, `subtract`, `scale`, `length`, `normalize`, `dot`, `cross`, `lerp`, `equals`, `toArray`, `toString`.
 
 ### `Quaternion`
 
@@ -94,7 +100,7 @@ Quaternion.fromEulerXYZ(x, y, z)   // angles in radians
 Quaternion.fromArray([x, y, z, w])
 ```
 
-Operations: `multiply`, `invert`, `normalize`, `rotateVec3`, `equals`, `toArray`, `toString`.
+Operations: `multiply`, `invert`, `normalize`, `rotateVec3`, `slerp`, `equals`, `toArray`, `toString`.
 
 ### `CycleDetectedError`
 
@@ -111,6 +117,28 @@ try {
   }
 }
 ```
+
+### `BufferedTFTree`
+
+```ts
+import { BufferedTFTree, BufferedTFTreeOptions } from "tf-engine";
+
+new BufferedTFTree(options?: BufferedTFTreeOptions)
+```
+
+Extends `TFTree` with a rolling time-stamped history of transforms.  Inherits all `TFTree` methods and adds:
+
+| Method | Description |
+|--------|-------------|
+| `setTransform(id, transform, timestamp)` | Record a time-stamped transform for an existing frame. Also keeps the base-class current transform in sync so the non-temporal `getTransform` always reflects the most recent value. Throws if `id` is not registered. |
+| `getTransformAt(from, to, timestamp)` | Returns the interpolated transform (LERP for translation, SLERP for rotation) between `from` and `to` at the given `timestamp` (ms). Falls back to the static registration transform for frames that have no history. Throws `RangeError` if the timestamp is older than the oldest buffered entry. |
+| `removeFrame(id)` | Removes the frame and its time-stamped buffer. Inherited behaviour otherwise identical to `TFTree.removeFrame`. |
+
+**`BufferedTFTreeOptions`**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `maxBufferDuration` | `number` | `10_000` | Maximum age of buffered entries in milliseconds. Entries older than `latestTimestamp − maxBufferDuration` are pruned automatically. |
 
 ## Examples
 
@@ -152,6 +180,83 @@ tf.addFrame("robot", "world", new Transform(new Vec3(0, 0, 0)));
 
 // Robot moves to (5, 0, 0)
 tf.updateTransform("robot", new Transform(new Vec3(5, 0, 0)));
+```
+
+### Batch-updating multiple frames
+
+```ts
+tf.addFrame("world");
+tf.addFrame("arm", "world", new Transform(new Vec3(1, 0, 0)));
+tf.addFrame("leg", "world", new Transform(new Vec3(0, 1, 0)));
+
+// Move both frames in one efficient call
+tf.updateTransforms({
+  arm: new Transform(new Vec3(2, 0, 0)),
+  leg: new Transform(new Vec3(0, 2, 0)),
+});
+```
+
+### Removing a frame
+
+```ts
+tf.addFrame("world");
+tf.addFrame("sensor", "world", new Transform(new Vec3(0, 0, 1)));
+
+// Remove the leaf frame
+tf.removeFrame("sensor");
+console.log(tf.hasFrame("sensor")); // false
+```
+
+### Subscribing to frame changes
+
+```ts
+tf.addFrame("world");
+tf.addFrame("robot", "world", new Transform(new Vec3(0, 0, 0)));
+
+const unsubscribe = tf.onChange("robot", (frameId) => {
+  console.log(`${frameId} world-transform changed`);
+});
+
+tf.updateTransform("robot", new Transform(new Vec3(1, 0, 0)));
+// → "robot world-transform changed"
+
+// Stop listening
+unsubscribe();
+```
+
+### Serializing and deserializing a tree
+
+```ts
+import { TFTree, Transform, Vec3 } from "tf-engine";
+
+const tf = new TFTree();
+tf.addFrame("world");
+tf.addFrame("robot", "world", new Transform(new Vec3(1, 0, 0)));
+
+// Serialize to a plain JS object (safe to JSON.stringify)
+const snapshot = tf.toJSON();
+
+// Reconstruct an identical tree elsewhere
+const copy = TFTree.fromJSON(snapshot);
+console.log(copy.hasFrame("robot")); // true
+```
+
+### Time-stamped transforms with BufferedTFTree
+
+```ts
+import { BufferedTFTree, Transform, Vec3 } from "tf-engine";
+
+const tf = new BufferedTFTree({ maxBufferDuration: 5_000 }); // 5-second window
+tf.addFrame("world");
+tf.addFrame("camera", "world");
+
+const now = Date.now();
+tf.setTransform("camera", new Transform(new Vec3(0, 0, 1)), now - 100);
+tf.setTransform("camera", new Transform(new Vec3(0, 0, 2)), now);
+
+// Interpolated position 50 ms in the past
+const past = tf.getTransformAt("world", "camera", now - 50);
+past.transformPoint(Vec3.zero()); // Vec3(0, 0, 1.5)
 ```
 
 ## Development
