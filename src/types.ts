@@ -25,6 +25,31 @@ export interface FrameNode {
 }
 
 /**
+ * JSON-serializable representation of a single frame node.
+ * Used by {@link TFTree.toJSON} and {@link TFTree.fromJSON}.
+ */
+export interface FrameNodeJSON {
+  readonly id: string;
+  /** Parent frame id; null for a root frame. */
+  readonly parentId: string | null;
+  readonly transform: {
+    /** [x, y, z] translation. */
+    readonly translation: [number, number, number];
+    /** [x, y, z, w] quaternion rotation. */
+    readonly rotation: [number, number, number, number];
+  };
+}
+
+/**
+ * JSON-serializable snapshot of an entire {@link TFTree}.
+ * Frames are ordered so that parents always appear before their children,
+ * making the array safe to replay with sequential {@link TFTree.addFrame} calls.
+ */
+export interface TFTreeJSON {
+  readonly frames: FrameNodeJSON[];
+}
+
+/**
  * Public API of the transform-tree engine.
  */
 export interface ITransformTree {
