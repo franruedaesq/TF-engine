@@ -72,6 +72,17 @@ export class Vec3 {
     return new Vec3(out[0], out[1], out[2]);
   }
 
+  /**
+   * Linear interpolation between this vector and `other`.
+   * @param other The target vector to interpolate towards.
+   * @param t Interpolation factor in [0, 1] (0 → this, 1 → other).
+   */
+  lerp(other: Vec3, t: number): Vec3 {
+    const out = glVec3.create();
+    glVec3.lerp(out, [this.x, this.y, this.z], [other.x, other.y, other.z], t);
+    return new Vec3(out[0], out[1], out[2]);
+  }
+
   // ── utility ────────────────────────────────────────────────────────────────
 
   equals(other: Vec3, epsilon = 1e-6): boolean {

@@ -81,6 +81,22 @@ export class Quaternion {
     return new Vec3(out[0], out[1], out[2]);
   }
 
+  /**
+   * Spherical Linear Interpolation between this quaternion and `other`.
+   * @param other The target quaternion to interpolate towards.
+   * @param t Interpolation factor in [0, 1] (0 → this, 1 → other).
+   */
+  slerp(other: Quaternion, t: number): Quaternion {
+    const q = glQuat.create();
+    glQuat.slerp(
+      q,
+      [this.x, this.y, this.z, this.w],
+      [other.x, other.y, other.z, other.w],
+      t,
+    );
+    return new Quaternion(q[0], q[1], q[2], q[3]);
+  }
+
   // ── utility ────────────────────────────────────────────────────────────────
 
   equals(other: Quaternion, epsilon = 1e-6): boolean {
