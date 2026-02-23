@@ -3,6 +3,7 @@ import { TFTree } from "../src/TFTree.js";
 import { Transform } from "../src/math/Transform.js";
 import { Vec3 } from "../src/math/Vec3.js";
 import { Quaternion } from "../src/math/Quaternion.js";
+import { CycleDetectedError } from "../src/CycleDetectedError.js";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -202,5 +203,21 @@ describe("TFTree", () => {
     (tf as unknown as { frames: Map<string, { id: string; parentId: string | undefined; transform: Transform }> })
       .frames.set("world", { id: "world", parentId: "child", transform: Transform.identity() });
     expect(() => tf.getTransform("world", "child")).toThrow(/Cycle detected/);
+  });
+
+  // ── CycleDetectedError ──────────────────────────────────────────────────────
+
+  it("getTransform() throws CycleDetectedError instance on cycle", () => {
+    tf.addFrame("world");
+    tf.addFrame("child", "world");
+    (tf as unknown as { frames: Map<string, { id: string; parentId: string | undefined; transform: Transform }> })
+      .frames.set("world", { id: "world", parentId: "child", transform: Transform.identity() });
+    expect(() => tf.getTransform("world", "child")).toThrowError(CycleDetectedError);
+  });
+
+  it("CycleDetectedError has the correct name", () => {
+    const err = new CycleDetectedError("someFrame");
+    expect(err.name).toBe("CycleDetectedError");
+    expect(err.message).toMatch(/someFrame/);
   });
 });
