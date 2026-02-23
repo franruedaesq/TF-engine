@@ -1,5 +1,6 @@
 import { Transform } from "./math/Transform.js";
 import { type FrameNode, type ITransformTree } from "./types.js";
+import { CycleDetectedError } from "./CycleDetectedError.js";
 
 /**
  * TFTree – a directed acyclic graph (tree) of named reference frames.
@@ -32,6 +33,7 @@ export class TFTree implements ITransformTree {
    * @param transform Transform expressing this frame relative to its parent.
    *                  Defaults to the identity transform.
    * @throws {Error} if `id` is already registered or `parentId` is not found.
+   * @throws {CycleDetectedError} if adding this frame would introduce a cycle.
    */
   addFrame(
     id: string,
@@ -45,6 +47,18 @@ export class TFTree implements ITransformTree {
       throw new Error(
         `Parent frame "${parentId}" not found. Register parents before children.`,
       );
+    }
+
+    // Check that the parent's chain to root does not already contain `id`,
+    // which would create a cycle and violate the DAG invariant.
+    if (parentId !== undefined) {
+      let current: string | undefined = parentId;
+      while (current !== undefined) {
+        if (current === id) {
+          throw new CycleDetectedError(id);
+        }
+        current = this.frames.get(current)?.parentId;
+      }
     }
 
     this.frames.set(id, { id, parentId, transform });
@@ -164,9 +178,7 @@ export class TFTree implements ITransformTree {
 
     while (current !== undefined) {
       if (visited.has(current)) {
-        throw new Error(
-          `Cycle detected in the transform tree at frame "${current}".`,
-        );
+        throw new CycleDetectedError(current);
       }
       visited.add(current);
       chain.push(current);
