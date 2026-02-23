@@ -5,8 +5,26 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "prepublishOnly": "npm run build && npm test",
     "test": "vitest run --coverage",
     "test:watch": "vitest"
   },
@@ -14,8 +32,15 @@
     "type": "git",
     "url": "git+https://github.com/franruedaesq/TF-engine.git"
   },
-  "keywords": ["transform", "frame", "robotics", "spatial", "graph", "quaternion"],
-  "author": "",
+  "keywords": [
+    "transform",
+    "frame",
+    "robotics",
+    "spatial",
+    "graph",
+    "quaternion"
+  ],
+  "author": "Francisco Rueda Esquivel <franruedaesq>",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/franruedaesq/TF-engine/issues"
@@ -26,15 +51,23 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.18",
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
   "vitest": {
-    "include": ["tests/**/*.test.ts"],
+    "include": [
+      "tests/**/*.test.ts"
+    ],
     "coverage": {
       "provider": "v8",
-      "reporter": ["text", "lcov"],
-      "include": ["src/**/*.ts"]
+      "reporter": [
+        "text",
+        "lcov"
+      ],
+      "include": [
+        "src/**/*.ts"
+      ]
     }
   }
 }

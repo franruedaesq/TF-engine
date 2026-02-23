@@ -19,7 +19,7 @@ export interface ITransform {
 export interface FrameNode {
   readonly id: string;
   /** Parent frame id; undefined for a root frame. */
-  readonly parentId?: string;
+  readonly parentId?: string | undefined;
   /** Transform expressing this frame relative to its parent. */
   readonly transform: Transform;
 }

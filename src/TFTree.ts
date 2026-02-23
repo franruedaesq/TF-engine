@@ -67,7 +67,8 @@ export class TFTree implements ITransformTree {
       }
     }
 
-    this.frames.set(id, { id, parentId, transform });
+    const node: FrameNode = parentId !== undefined ? { id, parentId, transform } : { id, transform };
+    this.frames.set(id, node);
     this.dirtySet.add(id);
     // Register in children map.
     if (!this.childrenMap.has(id)) {
