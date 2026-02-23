@@ -81,4 +81,24 @@ describe("Quaternion", () => {
   it("toString()", () => {
     expect(Quaternion.identity().toString()).toBe("Quaternion(0, 0, 0, 1)");
   });
+
+  it("slerp() at t=0 returns this", () => {
+    const q1 = Quaternion.fromAxisAngle(new Vec3(0, 0, 1), 0);
+    const q2 = Quaternion.fromAxisAngle(new Vec3(0, 0, 1), Math.PI / 2);
+    expect(q1.slerp(q2, 0).equals(q1)).toBe(true);
+  });
+
+  it("slerp() at t=1 returns other", () => {
+    const q1 = Quaternion.fromAxisAngle(new Vec3(0, 0, 1), 0);
+    const q2 = Quaternion.fromAxisAngle(new Vec3(0, 0, 1), Math.PI / 2);
+    expect(q1.slerp(q2, 1).equals(q2)).toBe(true);
+  });
+
+  it("slerp() at t=0.5 interpolates halfway", () => {
+    const q1 = Quaternion.fromAxisAngle(new Vec3(0, 0, 1), 0);
+    const q2 = Quaternion.fromAxisAngle(new Vec3(0, 0, 1), Math.PI / 2);
+    const mid = q1.slerp(q2, 0.5);
+    const expected = Quaternion.fromAxisAngle(new Vec3(0, 0, 1), Math.PI / 4);
+    expect(mid.equals(expected)).toBe(true);
+  });
 });

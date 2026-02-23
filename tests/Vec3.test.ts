@@ -74,4 +74,22 @@ describe("Vec3", () => {
   it("toString()", () => {
     expect(new Vec3(1, 2, 3).toString()).toBe("Vec3(1, 2, 3)");
   });
+
+  it("lerp() at t=0 returns this", () => {
+    const a = new Vec3(0, 0, 0);
+    const b = new Vec3(10, 20, 30);
+    expect(a.lerp(b, 0).equals(a)).toBe(true);
+  });
+
+  it("lerp() at t=1 returns other", () => {
+    const a = new Vec3(0, 0, 0);
+    const b = new Vec3(10, 20, 30);
+    expect(a.lerp(b, 1).equals(b)).toBe(true);
+  });
+
+  it("lerp() at t=0.5 returns midpoint", () => {
+    const a = new Vec3(0, 0, 0);
+    const b = new Vec3(10, 20, 30);
+    expect(a.lerp(b, 0.5).equals(new Vec3(5, 10, 15))).toBe(true);
+  });
 });
