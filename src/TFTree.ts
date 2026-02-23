@@ -243,6 +243,22 @@ export class TFTree implements ITransformTree {
     return tree;
   }
 
+  // ── protected helpers (available to subclasses) ───────────────────────────
+
+  /**
+   * Returns the {@link FrameNode} for the given id.
+   * Subclasses may use this to walk the frame hierarchy.
+   *
+   * @throws {Error} if `id` is not registered.
+   */
+  protected getFrameNode(id: string): FrameNode {
+    const frame = this.frames.get(id);
+    if (frame === undefined) {
+      throw new Error(`Frame "${id}" not found.`);
+    }
+    return frame;
+  }
+
   // ── private helpers ────────────────────────────────────────────────────────
 
   /**
