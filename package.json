@@ -1,0 +1,40 @@
+{
+  "name": "tf-engine",
+  "version": "1.0.0",
+  "description": "Transform Frame Engine – a directed graph of spatial transforms between named reference frames",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/franruedaesq/TF-engine.git"
+  },
+  "keywords": ["transform", "frame", "robotics", "spatial", "graph", "quaternion"],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/franruedaesq/TF-engine/issues"
+  },
+  "homepage": "https://github.com/franruedaesq/TF-engine#readme",
+  "dependencies": {
+    "gl-matrix": "^3.4.4"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.18",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "vitest": {
+    "include": ["tests/**/*.test.ts"],
+    "coverage": {
+      "provider": "v8",
+      "reporter": ["text", "lcov"],
+      "include": ["src/**/*.ts"]
+    }
+  }
+}
