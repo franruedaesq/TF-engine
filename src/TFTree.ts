@@ -1,13 +1,5 @@
 import { Transform } from "./math/Transform.js";
-
-/** A single node in the transform tree. */
-interface Frame {
-  readonly id: string;
-  /** Parent frame id; undefined for the root frame. */
-  readonly parentId: string | undefined;
-  /** Transform that expresses this frame relative to its parent. */
-  readonly transform: Transform;
-}
+import { type FrameNode, type ITransformTree } from "./types.js";
 
 /**
  * TFTree – a directed acyclic graph (tree) of named reference frames.
@@ -26,8 +18,8 @@ interface Frame {
  * const cameraInWorld = tf.getTransform("world", "camera");
  * ```
  */
-export class TFTree {
-  private readonly frames = new Map<string, Frame>();
+export class TFTree implements ITransformTree {
+  private readonly frames = new Map<string, FrameNode>();
 
   // ── frame registration ─────────────────────────────────────────────────────
 
@@ -69,6 +61,15 @@ export class TFTree {
       throw new Error(`Frame "${id}" not found.`);
     }
     this.frames.set(id, { ...frame, transform });
+  }
+
+  /**
+   * Alias for {@link updateTransform} – satisfies the {@link ITransformTree} interface.
+   *
+   * @throws {Error} if `id` is not registered.
+   */
+  updateFrame(id: string, transform: Transform): void {
+    this.updateTransform(id, transform);
   }
 
   // ── query ──────────────────────────────────────────────────────────────────
