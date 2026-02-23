@@ -1,5 +1,7 @@
 import { Transform } from "./math/Transform.js";
-import { type FrameNode, type ITransformTree } from "./types.js";
+import { Vec3 } from "./math/Vec3.js";
+import { Quaternion } from "./math/Quaternion.js";
+import { type FrameNode, type ITransformTree, type TFTreeJSON } from "./types.js";
 import { CycleDetectedError } from "./CycleDetectedError.js";
 
 /**
@@ -185,6 +187,60 @@ export class TFTree implements ITransformTree {
 
     // Use cached world transforms to compute the relative transform.
     return this.getWorldTransform(from).invert().compose(this.getWorldTransform(to));
+  }
+
+  // ── serialization ──────────────────────────────────────────────────────────
+
+  /**
+   * Serialize the entire tree to a plain JSON-compatible object.
+   *
+   * Frames are emitted in insertion order, which guarantees that parents
+   * always appear before their children — safe to replay with sequential
+   * {@link addFrame} calls.
+   *
+   * @example
+   * ```ts
+   * const json = tf.toJSON();
+   * const copy = TFTree.fromJSON(json);
+   * ```
+   */
+  toJSON(): TFTreeJSON {
+    const frames = Array.from(this.frames.values()).map((frame) => ({
+      id: frame.id,
+      parentId: frame.parentId ?? null,
+      transform: {
+        translation: frame.transform.translation.toArray(),
+        rotation: frame.transform.rotation.toArray(),
+      },
+    }));
+    return { frames };
+  }
+
+  /**
+   * Reconstruct a {@link TFTree} from a plain JSON object produced by
+   * {@link toJSON}.
+   *
+   * Frames must be listed in parent-before-child order (which {@link toJSON}
+   * guarantees automatically).
+   *
+   * @example
+   * ```ts
+   * const tf = TFTree.fromJSON(config);
+   * ```
+   *
+   * @throws {Error} if the data contains an unknown parent reference or a
+   *                 duplicate frame id.
+   */
+  static fromJSON(data: TFTreeJSON): TFTree {
+    const tree = new TFTree();
+    for (const frame of data.frames) {
+      const transform = new Transform(
+        Vec3.fromArray(frame.transform.translation),
+        Quaternion.fromArray(frame.transform.rotation),
+      );
+      tree.addFrame(frame.id, frame.parentId ?? undefined, transform);
+    }
+    return tree;
   }
 
   // ── private helpers ────────────────────────────────────────────────────────

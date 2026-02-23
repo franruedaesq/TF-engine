@@ -370,4 +370,96 @@ describe("TFTree", () => {
     expect(err.name).toBe("CycleDetectedError");
     expect(err.message).toMatch(/someFrame/);
   });
+
+  // ── toJSON / fromJSON ────────────────────────────────────────────────────────
+
+  it("toJSON() produces a plain object with all registered frames", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(1, 2, 3));
+    const json = tf.toJSON();
+    expect(json.frames).toHaveLength(2);
+    expect(json.frames[0].id).toBe("world");
+    expect(json.frames[0].parentId).toBeNull();
+    expect(json.frames[1].id).toBe("robot");
+    expect(json.frames[1].parentId).toBe("world");
+    expect(json.frames[1].transform.translation).toEqual([1, 2, 3]);
+  });
+
+  it("toJSON() serializes rotation correctly", () => {
+    tf.addFrame("world");
+    tf.addFrame("rotated", "world", rotate90Z());
+    const json = tf.toJSON();
+    const q = json.frames[1].transform.rotation;
+    expect(q).toHaveLength(4);
+    // Rotation quaternion for 90° around Z: x≈0, y≈0, z≈0.707, w≈0.707
+    expect(Math.abs(q[2])).toBeCloseTo(Math.SQRT2 / 2, 5);
+    expect(Math.abs(q[3])).toBeCloseTo(Math.SQRT2 / 2, 5);
+  });
+
+  it("fromJSON() reconstructs a tree with equivalent getTransform results", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(1, 0, 0));
+    tf.addFrame("camera", "robot", translate(0, 0, 1));
+
+    const restored = TFTree.fromJSON(tf.toJSON());
+
+    expect(restored.hasFrame("world")).toBe(true);
+    expect(restored.hasFrame("robot")).toBe(true);
+    expect(restored.hasFrame("camera")).toBe(true);
+
+    const original = tf.getTransform("world", "camera");
+    const copy = restored.getTransform("world", "camera");
+    expect(copy.transformPoint(Vec3.zero()).equals(original.transformPoint(Vec3.zero()))).toBe(true);
+  });
+
+  it("fromJSON() handles a root frame with null parentId", () => {
+    tf.addFrame("island");
+    const restored = TFTree.fromJSON(tf.toJSON());
+    expect(restored.hasFrame("island")).toBe(true);
+    expect(restored.frameIds()).toEqual(["island"]);
+  });
+
+  it("toJSON() followed by fromJSON() round-trips a rotation transform", () => {
+    tf.addFrame("world");
+    tf.addFrame("rotated", "world", rotate90Z());
+
+    const restored = TFTree.fromJSON(tf.toJSON());
+    const original = tf.getTransform("world", "rotated");
+    const copy = restored.getTransform("world", "rotated");
+    expect(copy.transformPoint(new Vec3(1, 0, 0)).equals(original.transformPoint(new Vec3(1, 0, 0)))).toBe(true);
+  });
+
+  it("fromJSON() preserves parent-child relationships", () => {
+    tf.addFrame("world");
+    tf.addFrame("robot", "world", translate(5, 0, 0));
+    tf.addFrame("sensor", "robot", translate(0, 1, 0));
+
+    const restored = TFTree.fromJSON(tf.toJSON());
+    const t = restored.getTransform("world", "sensor");
+    expect(t.transformPoint(Vec3.zero()).equals(new Vec3(5, 1, 0))).toBe(true);
+  });
+
+  it("fromJSON() throws when frame data references an unknown parent", () => {
+    expect(() =>
+      TFTree.fromJSON({
+        frames: [{ id: "child", parentId: "missing", transform: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] } }],
+      }),
+    ).toThrow(/not found/);
+  });
+
+  it("fromJSON() throws on duplicate frame ids", () => {
+    expect(() =>
+      TFTree.fromJSON({
+        frames: [
+          { id: "world", parentId: null, transform: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] } },
+          { id: "world", parentId: null, transform: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] } },
+        ],
+      }),
+    ).toThrow(/already registered/);
+  });
+
+  it("toJSON() on an empty tree returns an empty frames array", () => {
+    const json = tf.toJSON();
+    expect(json.frames).toHaveLength(0);
+  });
 });
