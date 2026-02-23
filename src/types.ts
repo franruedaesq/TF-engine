@@ -96,6 +96,20 @@ export interface ITransformTree {
   updateFrame(id: string, transform: Transform): void;
 
   /**
+   * Batch-update the transforms of multiple existing frames in a single call.
+   *
+   * More efficient than calling {@link updateFrame} repeatedly when several
+   * frames share an ancestor: dirty-marking is skipped for any frame whose
+   * ancestor is also included in the same batch, preventing redundant
+   * subtree traversals.
+   *
+   * @param updates A mapping from frame id to its new transform relative to
+   *                its parent.
+   * @throws {Error} if any id in `updates` is not registered.
+   */
+  updateTransforms(updates: Record<string, Transform>): void;
+
+  /**
    * Remove a registered frame from the tree.
    *
    * @param id Identifier of the frame to remove.
