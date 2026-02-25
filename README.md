@@ -50,19 +50,19 @@ const worldPoint = cameraInWorld.transformPoint(new Vec3(0, 0, 0));
 const tf = new TFTree();
 ```
 
-| Method | Description |
-|--------|-------------|
-| `addFrame(id, parentId?, transform?)` | Register a new frame. Omit `parentId` for a root frame. Defaults to the identity transform. Throws if the frame already exists, the parent is not found, or a cycle would be introduced. |
-| `updateTransform(id, transform)` | Replace the stored transform of an existing frame. Throws if the frame is not found. |
-| `updateFrame(id, transform)` | Alias for `updateTransform`. |
-| `updateTransforms(updates)` | Batch-replace the transforms of multiple existing frames in one call. More efficient than repeated `updateTransform` calls when several frames share an ancestor. `updates` is a `Record<string, Transform>`. Throws if any id is not registered. |
-| `removeFrame(id)` | Remove a registered frame. Throws if the frame is not found or still has child frames (remove children first). |
-| `hasFrame(id)` | Returns `true` if the frame is registered. |
-| `frameIds()` | Returns an array of all registered frame ids. |
-| `getTransform(from, to)` | Returns the `Transform` that maps points expressed in `from` to the coordinate system of `to`. Throws if either frame is unknown or the frames are not connected. |
-| `onChange(frameId, callback)` | Subscribe to world-transform changes for `frameId`. The callback receives `frameId` whenever the frame's world transform changes (due to the frame itself or any ancestor being updated). Returns an **unsubscribe function**. Throws if `frameId` is not registered. |
-| `toJSON()` | Serialize the entire tree to a plain JSON-compatible `TFTreeJSON` object. Frames are emitted in insertion order (parents before children). |
-| `TFTree.fromJSON(data)` | *(static)* Reconstruct a `TFTree` from a `TFTreeJSON` object produced by `toJSON`. |
+| Method                                | Description                                                                                                                                                                                                                                                           |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `addFrame(id, parentId?, transform?)` | Register a new frame. Omit `parentId` for a root frame. Defaults to the identity transform. Throws if the frame already exists, the parent is not found, or a cycle would be introduced.                                                                              |
+| `updateTransform(id, transform)`      | Replace the stored transform of an existing frame. Throws if the frame is not found.                                                                                                                                                                                  |
+| `updateFrame(id, transform)`          | Alias for `updateTransform`.                                                                                                                                                                                                                                          |
+| `updateTransforms(updates)`           | Batch-replace the transforms of multiple existing frames in one call. More efficient than repeated `updateTransform` calls when several frames share an ancestor. `updates` is a `Record<string, Transform>`. Throws if any id is not registered.                     |
+| `removeFrame(id)`                     | Remove a registered frame. Throws if the frame is not found or still has child frames (remove children first).                                                                                                                                                        |
+| `hasFrame(id)`                        | Returns `true` if the frame is registered.                                                                                                                                                                                                                            |
+| `frameIds()`                          | Returns an array of all registered frame ids.                                                                                                                                                                                                                         |
+| `getTransform(from, to)`              | Returns the `Transform` that maps points expressed in `from` to the coordinate system of `to`. Throws if either frame is unknown or the frames are not connected.                                                                                                     |
+| `onChange(frameId, callback)`         | Subscribe to world-transform changes for `frameId`. The callback receives `frameId` whenever the frame's world transform changes (due to the frame itself or any ancestor being updated). Returns an **unsubscribe function**. Throws if `frameId` is not registered. |
+| `toJSON()`                            | Serialize the entire tree to a plain JSON-compatible `TFTreeJSON` object. Frames are emitted in insertion order (parents before children).                                                                                                                            |
+| `TFTree.fromJSON(data)`               | _(static)_ Reconstruct a `TFTree` from a `TFTreeJSON` object produced by `toJSON`.                                                                                                                                                                                    |
 
 ### `Transform`
 
@@ -71,14 +71,14 @@ new Transform(translation?: Vec3, rotation?: Quaternion)
 Transform.identity()
 ```
 
-| Method | Description |
-|--------|-------------|
-| `compose(other)` | Returns the composed transform (apply `this` then `other`). |
-| `invert()` | Returns the inverse transform. |
-| `transformPoint(point)` | Applies this transform to a 3-D point (rotation then translation). |
-| `equals(other, epsilon?)` | Component-wise equality check. |
-| `toMat4()` | Returns a column-major 4×4 `Float32Array`. |
-| `Transform.fromMat4(m)` | Decomposes a 4×4 matrix back into a `Transform`. |
+| Method                    | Description                                                        |
+| ------------------------- | ------------------------------------------------------------------ |
+| `compose(other)`          | Returns the composed transform (apply `this` then `other`).        |
+| `invert()`                | Returns the inverse transform.                                     |
+| `transformPoint(point)`   | Applies this transform to a 3-D point (rotation then translation). |
+| `equals(other, epsilon?)` | Component-wise equality check.                                     |
+| `toMat4()`                | Returns a column-major 4×4 `Float32Array`.                         |
+| `Transform.fromMat4(m)`   | Decomposes a 4×4 matrix back into a `Transform`.                   |
 
 ### `Vec3`
 
@@ -126,18 +126,18 @@ import { BufferedTFTree, BufferedTFTreeOptions } from "tf-engine";
 new BufferedTFTree(options?: BufferedTFTreeOptions)
 ```
 
-Extends `TFTree` with a rolling time-stamped history of transforms.  Inherits all `TFTree` methods and adds:
+Extends `TFTree` with a rolling time-stamped history of transforms. Inherits all `TFTree` methods and adds:
 
-| Method | Description |
-|--------|-------------|
-| `setTransform(id, transform, timestamp)` | Record a time-stamped transform for an existing frame. Also keeps the base-class current transform in sync so the non-temporal `getTransform` always reflects the most recent value. Throws if `id` is not registered. |
-| `getTransformAt(from, to, timestamp)` | Returns the interpolated transform (LERP for translation, SLERP for rotation) between `from` and `to` at the given `timestamp` (ms). Falls back to the static registration transform for frames that have no history. Throws `RangeError` if the timestamp is older than the oldest buffered entry. |
-| `removeFrame(id)` | Removes the frame and its time-stamped buffer. Inherited behaviour otherwise identical to `TFTree.removeFrame`. |
+| Method                                   | Description                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setTransform(id, transform, timestamp)` | Record a time-stamped transform for an existing frame. Also keeps the base-class current transform in sync so the non-temporal `getTransform` always reflects the most recent value. Throws if `id` is not registered.                                                                              |
+| `getTransformAt(from, to, timestamp)`    | Returns the interpolated transform (LERP for translation, SLERP for rotation) between `from` and `to` at the given `timestamp` (ms). Falls back to the static registration transform for frames that have no history. Throws `RangeError` if the timestamp is older than the oldest buffered entry. |
+| `removeFrame(id)`                        | Removes the frame and its time-stamped buffer. Inherited behaviour otherwise identical to `TFTree.removeFrame`.                                                                                                                                                                                     |
 
 **`BufferedTFTreeOptions`**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
+| Option              | Type     | Default  | Description                                                                                                                         |
+| ------------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `maxBufferDuration` | `number` | `10_000` | Maximum age of buffered entries in milliseconds. Entries older than `latestTimestamp − maxBufferDuration` are pruned automatically. |
 
 ## Examples
@@ -159,10 +159,7 @@ t.transformPoint(Vec3.zero()); // Vec3(-1, 1, 0)
 ```ts
 import { Quaternion } from "tf-engine";
 
-const rot90Z = new Transform(
-  Vec3.zero(),
-  Quaternion.fromAxisAngle(new Vec3(0, 0, 1), Math.PI / 2),
-);
+const rot90Z = new Transform(Vec3.zero(), Quaternion.fromAxisAngle(new Vec3(0, 0, 1), Math.PI / 2));
 
 tf.addFrame("world");
 tf.addFrame("rotated", "world", rot90Z);
