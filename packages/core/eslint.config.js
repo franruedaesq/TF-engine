@@ -11,11 +11,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default [
   js.configs.recommended,
   {
-    files: ["packages/*/src/**/*.ts"],
+    files: ["src/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: resolve(__dirname, "packages/core/tsconfig.json"),
+        project: resolve(__dirname, "tsconfig.json"),
         tsconfigRootDir: __dirname,
       },
     },
@@ -30,11 +30,11 @@ export default [
     },
   },
   {
-    files: ["packages/*/tests/**/*.ts"],
+    files: ["tests/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: resolve(__dirname, "packages/core/tsconfig.test.json"),
+        project: resolve(__dirname, "tsconfig.test.json"),
         tsconfigRootDir: __dirname,
       },
     },
@@ -50,4 +50,3 @@ export default [
   },
   prettierConfig,
 ];
-

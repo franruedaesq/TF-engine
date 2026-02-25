@@ -1,33 +1,17 @@
 {
-  "name": "tf-engine",
+  "name": "tf-engine-monorepo",
   "version": "1.0.0",
-  "description": "Transform Frame Engine – a directed graph of spatial transforms between named reference frames",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "Transform Frame Engine – monorepo root",
+  "private": true,
   "type": "module",
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
-    }
-  },
-  "files": [
-    "dist",
-    "src",
-    "README.md"
+  "workspaces": [
+    "packages/*"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
-    "prepublishOnly": "npm run build && npm test",
-    "test": "vitest run --coverage",
-    "test:watch": "vitest",
-    "lint": "eslint src tests",
+    "build": "npm run build --workspace=packages/core",
+    "test": "npm run test --workspace=packages/core",
+    "test:watch": "npm run test:watch --workspace=packages/core",
+    "lint": "npm run lint --workspace=packages/core",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -49,35 +33,15 @@
     "url": "https://github.com/franruedaesq/TF-engine/issues"
   },
   "homepage": "https://github.com/franruedaesq/TF-engine#readme",
-  "dependencies": {
-    "gl-matrix": "^3.4.4"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
     "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
-    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.1",
-    "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
-  },
-  "vitest": {
-    "include": [
-      "tests/**/*.test.ts"
-    ],
-    "coverage": {
-      "provider": "v8",
-      "reporter": [
-        "text",
-        "lcov"
-      ],
-      "include": [
-        "src/**/*.ts"
-      ]
-    }
+    "typescript": "^5.9.3"
   }
 }
