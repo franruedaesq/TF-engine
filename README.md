@@ -10,6 +10,7 @@ A TypeScript library for managing spatial transforms between named reference fra
 - **`Vec3`** – immutable 3-component vector with common arithmetic helpers including linear interpolation (`lerp`).
 - **`Quaternion`** – immutable unit quaternion with factory helpers (`fromAxisAngle`, `fromEulerXYZ`) and spherical linear interpolation (`slerp`).
 - **`CycleDetectedError`** – typed error thrown when a cycle is detected in the frame graph.
+- **`@tf-engine/urdf-loader`** – parse a ROS URDF XML string and hydrate a `TFTree` in one call.
 - Full TypeScript type declarations included.
 
 ## Installation
@@ -270,7 +271,84 @@ npm test
 
 # Watch mode
 npm run test:watch
+
+# Run performance benchmarks
+npm run bench
 ```
+
+## Performance Benchmarks
+
+The engine's O(depth) claim is validated with Vitest benchmarks against a **1 000-node graph**.
+Run them yourself with `npm run bench` from the repo root.
+
+Results on a standard CI machine (Node.js v24, Vitest 4):
+
+| Scenario | ops / sec |
+|---|---|
+| `updateTransform` – single leaf frame (linear chain, depth 1 000) | **~4 364 128** |
+| `getTransform` – world → leaf (linear chain, full traversal) | **~8 636** |
+| `updateTransforms` – batch all 1 000 frames (linear chain) | **~2 560** |
+| `updateTransforms` – batch ~1 000 frames (balanced binary tree, depth 10) | **~2 581** |
+
+Key takeaways:
+- **Single-frame updates** are essentially free — the dirty-flag mechanism propagates lazily so no recomputation happens until `getTransform` is called.
+- **`getTransform`** across a 1 000-node chain (worst case) still exceeds **8 000 ops/sec**, well within real-time robotics requirements.
+- **Batch updates** via `updateTransforms` efficiently skip redundant subtree traversals when ancestors are included in the same batch.
+
+## `@tf-engine/urdf-loader`
+
+A companion package that parses a [ROS URDF](https://wiki.ros.org/urdf/XML) XML string and hydrates a `TFTree`.
+
+### Installation
+
+```bash
+npm install @tf-engine/urdf-loader
+```
+
+### Usage
+
+```ts
+import { loadUrdf } from "@tf-engine/urdf-loader";
+
+const urdf = `
+  <robot name="simple_arm">
+    <link name="base_link"/>
+    <link name="shoulder"/>
+    <link name="elbow"/>
+
+    <joint name="shoulder_joint" type="revolute">
+      <parent link="base_link"/>
+      <child link="shoulder"/>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+    </joint>
+
+    <joint name="elbow_joint" type="revolute">
+      <parent link="shoulder"/>
+      <child link="elbow"/>
+      <origin xyz="0 0 0.4" rpy="0 0 0"/>
+    </joint>
+  </robot>
+`;
+
+const tf = loadUrdf(urdf);
+
+tf.hasFrame("base_link"); // true
+tf.hasFrame("shoulder");  // true
+tf.hasFrame("elbow");     // true
+
+// Resolve elbow position in base_link space
+const t = tf.getTransform("base_link", "elbow");
+t.transformPoint(Vec3.zero()); // Vec3(0, 0, 0.9)
+```
+
+#### `loadUrdf(xml, options?)`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `xml` | `string` | Full URDF XML string. |
+| `options.addRobotRoot` | `boolean` | When `true`, adds the robot's `name` attribute as an extra root frame that is the parent of all base links. Defaults to `false`. |
+
+Throws `Error` if the XML is missing a `<robot>` element or if a joint references a link that is not declared.
 
 ## License
 

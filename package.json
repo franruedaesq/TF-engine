@@ -13,8 +13,10 @@
     "test": "npm run test --workspace=packages/core",
     "test:react": "npm run test --workspace=packages/react",
     "test:three": "npm run test --workspace=packages/three",
+    "test:urdf-loader": "npm run test --workspace=packages/urdf-loader",
     "test:all": "npm run test --workspaces --if-present",
     "test:watch": "npm run test:watch --workspace=packages/core",
+    "bench": "vitest bench --run --workspace=packages/core",
     "lint": "npm run lint --workspace=packages/core",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -1,7 +1,7 @@
 {
-  "name": "@tf-engine/core",
+  "name": "@tf-engine/urdf-loader",
   "version": "1.0.0",
-  "description": "Transform Frame Engine – a directed graph of spatial transforms between named reference frames",
+  "description": "URDF (Unified Robot Description Format) loader for @tf-engine/core – hydrate a TFTree from a ROS URDF XML string",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -25,18 +25,17 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "prepublishOnly": "npm run build && npm test",
-    "test": "vitest run --coverage",
+    "test": "vitest run",
     "test:watch": "vitest",
-    "bench": "vitest bench --run",
     "lint": "eslint src tests"
   },
   "keywords": [
+    "urdf",
+    "robot",
+    "ros",
     "transform",
     "frame",
-    "robotics",
-    "spatial",
-    "graph",
-    "quaternion"
+    "spatial"
   ],
   "author": "Francisco Rueda Esquivel <franruedaesq>",
   "license": "ISC",
@@ -45,7 +44,7 @@
   },
   "homepage": "https://github.com/franruedaesq/TF-engine#readme",
   "dependencies": {
-    "gl-matrix": "^3.4.4"
+    "@tf-engine/core": "*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.18",
