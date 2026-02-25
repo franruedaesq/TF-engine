@@ -238,11 +238,7 @@ export class BufferedTFTree extends TFTree {
    * Recursively compute the world transform (accumulated from the subtree root
    * down to `id`) at the given timestamp.
    */
-  private worldTransformAt(
-    id: string,
-    timestamp: number,
-    visiting = new Set<string>(),
-  ): Transform {
+  private worldTransformAt(id: string, timestamp: number, visiting = new Set<string>()): Transform {
     if (visiting.has(id)) {
       throw new CycleDetectedError(id);
     }

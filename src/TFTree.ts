@@ -1,7 +1,12 @@
 import { Transform } from "./math/Transform.js";
 import { Vec3 } from "./math/Vec3.js";
 import { Quaternion } from "./math/Quaternion.js";
-import { type FrameNode, type ITransformTree, type TFTreeJSON, type ChangeCallback } from "./types.js";
+import {
+  type FrameNode,
+  type ITransformTree,
+  type TFTreeJSON,
+  type ChangeCallback,
+} from "./types.js";
 import { CycleDetectedError } from "./CycleDetectedError.js";
 
 /**
@@ -41,18 +46,12 @@ export class TFTree implements ITransformTree {
    * @throws {Error} if `id` is already registered or `parentId` is not found.
    * @throws {CycleDetectedError} if adding this frame would introduce a cycle.
    */
-  addFrame(
-    id: string,
-    parentId?: string,
-    transform: Transform = Transform.identity(),
-  ): void {
+  addFrame(id: string, parentId?: string, transform: Transform = Transform.identity()): void {
     if (this.frames.has(id)) {
       throw new Error(`Frame "${id}" is already registered.`);
     }
     if (parentId !== undefined && !this.frames.has(parentId)) {
-      throw new Error(
-        `Parent frame "${parentId}" not found. Register parents before children.`,
-      );
+      throw new Error(`Parent frame "${parentId}" not found. Register parents before children.`);
     }
 
     // Check that the parent's chain to root does not already contain `id`,
@@ -67,7 +66,8 @@ export class TFTree implements ITransformTree {
       }
     }
 
-    const node: FrameNode = parentId !== undefined ? { id, parentId, transform } : { id, transform };
+    const node: FrameNode =
+      parentId !== undefined ? { id, parentId, transform } : { id, transform };
     this.frames.set(id, node);
     this.dirtySet.add(id);
     // Register in children map.
@@ -211,9 +211,7 @@ export class TFTree implements ITransformTree {
     const toChain = this.chainToRoot(to);
 
     // Find the lowest common ancestor (LCA).
-    const toChainMap = new Map<string, number>(
-      toChain.map((id, idx) => [id, idx]),
-    );
+    const toChainMap = new Map<string, number>(toChain.map((id, idx) => [id, idx]));
 
     let lcaId: string | undefined;
     for (let i = 0; i < fromChain.length; i++) {
@@ -224,9 +222,7 @@ export class TFTree implements ITransformTree {
     }
 
     if (lcaId === undefined) {
-      throw new Error(
-        `Frames "${from}" and "${to}" are not connected in the same tree.`,
-      );
+      throw new Error(`Frames "${from}" and "${to}" are not connected in the same tree.`);
     }
 
     // Use cached world transforms to compute the relative transform.

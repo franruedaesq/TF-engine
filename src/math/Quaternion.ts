@@ -52,11 +52,7 @@ export class Quaternion {
   /** Hamilton product: this × other (applies `other` first, then `this`). */
   multiply(other: Quaternion): Quaternion {
     const q = glQuat.create();
-    glQuat.multiply(
-      q,
-      [this.x, this.y, this.z, this.w],
-      [other.x, other.y, other.z, other.w],
-    );
+    glQuat.multiply(q, [this.x, this.y, this.z, this.w], [other.x, other.y, other.z, other.w]);
     return new Quaternion(q[0], q[1], q[2], q[3]);
   }
 
@@ -88,12 +84,7 @@ export class Quaternion {
    */
   slerp(other: Quaternion, t: number): Quaternion {
     const q = glQuat.create();
-    glQuat.slerp(
-      q,
-      [this.x, this.y, this.z, this.w],
-      [other.x, other.y, other.z, other.w],
-      t,
-    );
+    glQuat.slerp(q, [this.x, this.y, this.z, this.w], [other.x, other.y, other.z, other.w], t);
     return new Quaternion(q[0], q[1], q[2], q[3]);
   }
 
@@ -101,8 +92,7 @@ export class Quaternion {
 
   equals(other: Quaternion, epsilon = 1e-6): boolean {
     // q and -q represent the same rotation
-    const dot =
-      this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w;
+    const dot = this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w;
     return Math.abs(Math.abs(dot) - 1) <= epsilon;
   }
 

@@ -12,10 +12,7 @@ function translate(x: number, y: number, z: number): Transform {
 }
 
 function rotate90Z(): Transform {
-  return new Transform(
-    Vec3.zero(),
-    Quaternion.fromAxisAngle(new Vec3(0, 0, 1), Math.PI / 2),
-  );
+  return new Transform(Vec3.zero(), Quaternion.fromAxisAngle(new Vec3(0, 0, 1), Math.PI / 2));
 }
 
 // ── tests ────────────────────────────────────────────────────────────────────
@@ -88,8 +85,18 @@ describe("TFTree", () => {
       leg: translate(0, 4, 0),
     });
 
-    expect(tf.getTransform("world", "arm").transformPoint(Vec3.zero()).equals(new Vec3(3, 0, 0))).toBe(true);
-    expect(tf.getTransform("world", "leg").transformPoint(Vec3.zero()).equals(new Vec3(0, 4, 0))).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "arm")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(3, 0, 0)),
+    ).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "leg")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(0, 4, 0)),
+    ).toBe(true);
   });
 
   it("updateTransforms() throws for any unknown frame id", () => {
@@ -107,7 +114,12 @@ describe("TFTree", () => {
     tf.addFrame("wrist", "shoulder", translate(0, 0, 1));
 
     // Warm the cache so we can verify invalidation.
-    expect(tf.getTransform("world", "wrist").transformPoint(Vec3.zero()).equals(new Vec3(1, 1, 1))).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "wrist")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(1, 1, 1)),
+    ).toBe(true);
 
     // Batch update base and shoulder together.
     tf.updateTransforms({
@@ -116,8 +128,18 @@ describe("TFTree", () => {
     });
 
     // All descendants of base (including shoulder and wrist) must reflect new values.
-    expect(tf.getTransform("world", "shoulder").transformPoint(Vec3.zero()).equals(new Vec3(2, 2, 0))).toBe(true);
-    expect(tf.getTransform("world", "wrist").transformPoint(Vec3.zero()).equals(new Vec3(2, 2, 1))).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "shoulder")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(2, 2, 0)),
+    ).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "wrist")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(2, 2, 1)),
+    ).toBe(true);
   });
 
   it("updateTransforms() with an empty object is a no-op", () => {
@@ -125,11 +147,21 @@ describe("TFTree", () => {
     tf.addFrame("robot", "world", translate(1, 0, 0));
 
     // Warm cache.
-    expect(tf.getTransform("world", "robot").transformPoint(Vec3.zero()).equals(new Vec3(1, 0, 0))).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "robot")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(1, 0, 0)),
+    ).toBe(true);
 
     tf.updateTransforms({});
 
-    expect(tf.getTransform("world", "robot").transformPoint(Vec3.zero()).equals(new Vec3(1, 0, 0))).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "robot")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(1, 0, 0)),
+    ).toBe(true);
   });
 
   it("updateFrame() changes the stored transform", () => {
@@ -356,12 +388,22 @@ describe("TFTree", () => {
     tf.addFrame("camera", "robot", translate(0, 0, 1));
 
     // Warm the cache.
-    expect(tf.getTransform("world", "camera").transformPoint(Vec3.zero()).equals(new Vec3(1, 0, 1))).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "camera")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(1, 0, 1)),
+    ).toBe(true);
 
     // Move the robot – camera should follow.
     tf.updateTransform("robot", translate(5, 0, 0));
 
-    expect(tf.getTransform("world", "camera").transformPoint(Vec3.zero()).equals(new Vec3(5, 0, 1))).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "camera")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(5, 0, 1)),
+    ).toBe(true);
   });
 
   it("updateTransform() only dirties the updated subtree, not unrelated frames", () => {
@@ -370,15 +412,35 @@ describe("TFTree", () => {
     tf.addFrame("leg", "world", translate(0, 1, 0));
 
     // Warm the cache for both branches.
-    expect(tf.getTransform("world", "arm").transformPoint(Vec3.zero()).equals(new Vec3(1, 0, 0))).toBe(true);
-    expect(tf.getTransform("world", "leg").transformPoint(Vec3.zero()).equals(new Vec3(0, 1, 0))).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "arm")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(1, 0, 0)),
+    ).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "leg")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(0, 1, 0)),
+    ).toBe(true);
 
     // Update only arm.
     tf.updateTransform("arm", translate(3, 0, 0));
 
     // arm is updated; leg is unchanged.
-    expect(tf.getTransform("world", "arm").transformPoint(Vec3.zero()).equals(new Vec3(3, 0, 0))).toBe(true);
-    expect(tf.getTransform("world", "leg").transformPoint(Vec3.zero()).equals(new Vec3(0, 1, 0))).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "arm")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(3, 0, 0)),
+    ).toBe(true);
+    expect(
+      tf
+        .getTransform("world", "leg")
+        .transformPoint(Vec3.zero())
+        .equals(new Vec3(0, 1, 0)),
+    ).toBe(true);
   });
 
   // ── error handling ───────────────────────────────────────────────────────────
@@ -404,8 +466,11 @@ describe("TFTree", () => {
     tf.addFrame("world");
     tf.addFrame("child", "world");
     // Introduce cycle: child → world → child
-    (tf as unknown as { frames: Map<string, { id: string; parentId: string | undefined; transform: Transform }> })
-      .frames.set("world", { id: "world", parentId: "child", transform: Transform.identity() });
+    (
+      tf as unknown as {
+        frames: Map<string, { id: string; parentId: string | undefined; transform: Transform }>;
+      }
+    ).frames.set("world", { id: "world", parentId: "child", transform: Transform.identity() });
     expect(() => tf.getTransform("world", "child")).toThrow(/Cycle detected/);
   });
 
@@ -414,8 +479,11 @@ describe("TFTree", () => {
   it("getTransform() throws CycleDetectedError instance on cycle", () => {
     tf.addFrame("world");
     tf.addFrame("child", "world");
-    (tf as unknown as { frames: Map<string, { id: string; parentId: string | undefined; transform: Transform }> })
-      .frames.set("world", { id: "world", parentId: "child", transform: Transform.identity() });
+    (
+      tf as unknown as {
+        frames: Map<string, { id: string; parentId: string | undefined; transform: Transform }>;
+      }
+    ).frames.set("world", { id: "world", parentId: "child", transform: Transform.identity() });
     expect(() => tf.getTransform("world", "child")).toThrowError(CycleDetectedError);
   });
 
@@ -463,7 +531,9 @@ describe("TFTree", () => {
 
     const original = tf.getTransform("world", "camera");
     const copy = restored.getTransform("world", "camera");
-    expect(copy.transformPoint(Vec3.zero()).equals(original.transformPoint(Vec3.zero()))).toBe(true);
+    expect(copy.transformPoint(Vec3.zero()).equals(original.transformPoint(Vec3.zero()))).toBe(
+      true,
+    );
   });
 
   it("fromJSON() handles a root frame with null parentId", () => {
@@ -480,7 +550,9 @@ describe("TFTree", () => {
     const restored = TFTree.fromJSON(tf.toJSON());
     const original = tf.getTransform("world", "rotated");
     const copy = restored.getTransform("world", "rotated");
-    expect(copy.transformPoint(new Vec3(1, 0, 0)).equals(original.transformPoint(new Vec3(1, 0, 0)))).toBe(true);
+    expect(
+      copy.transformPoint(new Vec3(1, 0, 0)).equals(original.transformPoint(new Vec3(1, 0, 0))),
+    ).toBe(true);
   });
 
   it("fromJSON() preserves parent-child relationships", () => {
@@ -496,7 +568,13 @@ describe("TFTree", () => {
   it("fromJSON() throws when frame data references an unknown parent", () => {
     expect(() =>
       TFTree.fromJSON({
-        frames: [{ id: "child", parentId: "missing", transform: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] } }],
+        frames: [
+          {
+            id: "child",
+            parentId: "missing",
+            transform: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] },
+          },
+        ],
       }),
     ).toThrow(/not found/);
   });
@@ -505,8 +583,16 @@ describe("TFTree", () => {
     expect(() =>
       TFTree.fromJSON({
         frames: [
-          { id: "world", parentId: null, transform: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] } },
-          { id: "world", parentId: null, transform: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] } },
+          {
+            id: "world",
+            parentId: null,
+            transform: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] },
+          },
+          {
+            id: "world",
+            parentId: null,
+            transform: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] },
+          },
         ],
       }),
     ).toThrow(/already registered/);

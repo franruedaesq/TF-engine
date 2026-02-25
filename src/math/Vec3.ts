@@ -35,11 +35,7 @@ export class Vec3 {
 
   subtract(other: Vec3): Vec3 {
     const out = glVec3.create();
-    glVec3.subtract(
-      out,
-      [this.x, this.y, this.z],
-      [other.x, other.y, other.z],
-    );
+    glVec3.subtract(out, [this.x, this.y, this.z], [other.x, other.y, other.z]);
     return new Vec3(out[0], out[1], out[2]);
   }
 
@@ -60,10 +56,7 @@ export class Vec3 {
   }
 
   dot(other: Vec3): number {
-    return glVec3.dot(
-      [this.x, this.y, this.z],
-      [other.x, other.y, other.z],
-    );
+    return glVec3.dot([this.x, this.y, this.z], [other.x, other.y, other.z]);
   }
 
   cross(other: Vec3): Vec3 {
