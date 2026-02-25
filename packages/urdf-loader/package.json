@@ -1,6 +1,6 @@
 {
   "name": "@tf-engine/urdf-loader",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "URDF (Unified Robot Description Format) loader for @tf-engine/core – hydrate a TFTree from a ROS URDF XML string",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

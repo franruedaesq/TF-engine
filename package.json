@@ -19,7 +19,9 @@
     "bench": "vitest bench --run --workspace=packages/core",
     "lint": "npm run lint --workspace=packages/core",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "publish:dry": "DRY_RUN=1 bash scripts/publish.sh",
+    "publish:all": "bash scripts/publish.sh"
   },
   "repository": {
     "type": "git",
