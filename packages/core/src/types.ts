@@ -136,6 +136,13 @@ export interface ITransformTree {
   getTransform(from: string, to: string): Transform;
 
   /**
+   * Returns true if the given frame id is registered.
+   *
+   * @param id Frame identifier to check.
+   */
+  hasFrame(id: string): boolean;
+
+  /**
    * Subscribe to world-transform changes for `frameId`.
    *
    * The `callback` is invoked whenever the world transform of `frameId`

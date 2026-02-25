@@ -9,7 +9,11 @@
   ],
   "scripts": {
     "build": "npm run build --workspace=packages/core",
+    "build:all": "npm run build --workspaces --if-present",
     "test": "npm run test --workspace=packages/core",
+    "test:react": "npm run test --workspace=packages/react",
+    "test:three": "npm run test --workspace=packages/three",
+    "test:all": "npm run test --workspaces --if-present",
     "test:watch": "npm run test:watch --workspace=packages/core",
     "lint": "npm run lint --workspace=packages/core",
     "format": "prettier --write .",
@@ -33,15 +37,18 @@
     "url": "https://github.com/franruedaesq/TF-engine/issues"
   },
   "homepage": "https://github.com/franruedaesq/TF-engine#readme",
-  "dependencies": {},
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
     "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.14",
+    "@types/three": "^0.183.1",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.1",
+    "react": "^19.2.4",
+    "three": "^0.183.1",
     "typescript": "^5.9.3"
   }
 }
