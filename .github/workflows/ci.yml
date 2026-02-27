@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, rust-core]
   push:
-    branches: [main]
+    branches: [main, rust-core]
 
 jobs:
   ci:
@@ -35,3 +35,62 @@ jobs:
 
       - name: Test
         run: npm test
+
+  build-rust:
+    name: Build Rust/WASM (wasm-pack)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/core/rust/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('packages/core/rust/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Rust/WASM
+        run: npm run build:rust --workspace=packages/core
+
+      - name: Verify WASM artifacts
+        run: |
+          test -f packages/core/src/wasm/pkg/index.js
+          test -f packages/core/src/wasm/pkg/index_bg.wasm
+          test -f packages/core/src/wasm/pkg/index.d.ts
+
+      - name: Build TypeScript package
+        run: npm run build --workspace=packages/core
+
+      - name: Verify build artifacts
+        run: |
+          test -f packages/core/dist/index.js
+          test -f packages/core/dist/index.cjs
+          test -f packages/core/dist/index.d.ts
+
+      - name: Run Node.js integration test
+        run: node packages/core/tests/test-node-require.js

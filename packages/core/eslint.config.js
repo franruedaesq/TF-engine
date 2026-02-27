@@ -37,6 +37,9 @@ export default [
         project: resolve(__dirname, "tsconfig.test.json"),
         tsconfigRootDir: __dirname,
       },
+      globals: {
+        process: "readonly",
+      },
     },
     plugins: {
       "@typescript-eslint": tsPlugin,
@@ -49,8 +52,8 @@ export default [
     },
   },
   prettierConfig,
-  // Ignore generated Rust/WASM artefacts.
+  // Ignore generated Rust/WASM artefacts and plain Node.js scripts.
   {
-    ignores: ["src/wasm/pkg/**"],
+    ignores: ["src/wasm/pkg/**", "tests/**/*.js"],
   },
 ];
