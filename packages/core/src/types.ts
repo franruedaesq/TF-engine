@@ -127,6 +127,11 @@ export interface ITransformTree {
   removeFrame(id: string): void;
 
   /**
+   * Returns all registered frame ids in insertion order.
+   */
+  frameIds(): string[];
+
+  /**
    * Compute the transform that maps points expressed in `from` to the
    * coordinate system of `to`.
    *

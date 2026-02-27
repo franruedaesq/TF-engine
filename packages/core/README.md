@@ -52,19 +52,19 @@ import { TFTree } from "@tf-engine/core";
 const tf = new TFTree();
 ```
 
-| Method | Description |
-|---|---|
+| Method                                | Description                                                                                                                                                                            |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `addFrame(id, parentId?, transform?)` | Register a new frame. Omit `parentId` for a root frame. Defaults to the identity transform. Throws if the frame already exists, the parent is unknown, or a cycle would be introduced. |
-| `updateTransform(id, transform)` | Replace the stored transform of an existing frame. |
-| `updateFrame(id, transform)` | Alias for `updateTransform`. |
-| `updateTransforms(updates)` | Batch-replace transforms for multiple frames in one call (`Record<string, Transform>`). |
-| `removeFrame(id)` | Remove a registered frame. Throws if it still has child frames. |
-| `hasFrame(id)` | Returns `true` if the frame is registered. |
-| `frameIds()` | Returns an array of all registered frame ids. |
-| `getTransform(from, to)` | Returns the `Transform` mapping points from `from` to `to`. |
-| `onChange(frameId, callback)` | Subscribe to world-transform changes for `frameId`. Returns an unsubscribe function. |
-| `toJSON()` | Serialize the tree to a plain `TFTreeJSON` object. |
-| `TFTree.fromJSON(data)` | _(static)_ Reconstruct a `TFTree` from a `TFTreeJSON` object. |
+| `updateTransform(id, transform)`      | Replace the stored transform of an existing frame.                                                                                                                                     |
+| `updateFrame(id, transform)`          | Alias for `updateTransform`.                                                                                                                                                           |
+| `updateTransforms(updates)`           | Batch-replace transforms for multiple frames in one call (`Record<string, Transform>`).                                                                                                |
+| `removeFrame(id)`                     | Remove a registered frame. Throws if it still has child frames.                                                                                                                        |
+| `hasFrame(id)`                        | Returns `true` if the frame is registered.                                                                                                                                             |
+| `frameIds()`                          | Returns an array of all registered frame ids.                                                                                                                                          |
+| `getTransform(from, to)`              | Returns the `Transform` mapping points from `from` to `to`.                                                                                                                            |
+| `onChange(frameId, callback)`         | Subscribe to world-transform changes for `frameId`. Returns an unsubscribe function.                                                                                                   |
+| `toJSON()`                            | Serialize the tree to a plain `TFTreeJSON` object.                                                                                                                                     |
+| `TFTree.fromJSON(data)`               | _(static)_ Reconstruct a `TFTree` from a `TFTreeJSON` object.                                                                                                                          |
 
 ---
 
@@ -90,15 +90,15 @@ past.transformPoint(Vec3.zero()); // Vec3(0, 0, 1.5)
 
 **Extra methods**
 
-| Method | Description |
-|---|---|
-| `setTransform(id, transform, timestamp)` | Record a time-stamped transform. |
-| `getTransformAt(from, to, timestamp)` | Return the interpolated transform at the given timestamp (ms). |
+| Method                                   | Description                                                    |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| `setTransform(id, transform, timestamp)` | Record a time-stamped transform.                               |
+| `getTransformAt(from, to, timestamp)`    | Return the interpolated transform at the given timestamp (ms). |
 
 **`BufferedTFTreeOptions`**
 
-| Option | Type | Default | Description |
-|---|---|---|---|
+| Option              | Type     | Default  | Description                                  |
+| ------------------- | -------- | -------- | -------------------------------------------- |
 | `maxBufferDuration` | `number` | `10_000` | Max age of buffered entries in milliseconds. |
 
 ---
@@ -113,13 +113,13 @@ Transform.identity()
 Transform.fromMat4(m: Float32Array)
 ```
 
-| Method | Description |
-|---|---|
-| `compose(other)` | Returns the composed transform (apply `this` then `other`). |
-| `invert()` | Returns the inverse transform. |
-| `transformPoint(point)` | Applies this transform to a 3-D point. |
-| `equals(other, epsilon?)` | Component-wise equality check. |
-| `toMat4()` | Returns a column-major 4×4 `Float32Array`. |
+| Method                    | Description                                                 |
+| ------------------------- | ----------------------------------------------------------- |
+| `compose(other)`          | Returns the composed transform (apply `this` then `other`). |
+| `invert()`                | Returns the inverse transform.                              |
+| `transformPoint(point)`   | Applies this transform to a 3-D point.                      |
+| `equals(other, epsilon?)` | Component-wise equality check.                              |
+| `toMat4()`                | Returns a column-major 4×4 `Float32Array`.                  |
 
 ---
 
@@ -177,8 +177,8 @@ try {
 
 ```ts
 tf.addFrame("world");
-tf.addFrame("arm",  "world", new Transform(new Vec3(1, 0, 0)));
-tf.addFrame("leg",  "world", new Transform(new Vec3(0, 1, 0)));
+tf.addFrame("arm", "world", new Transform(new Vec3(1, 0, 0)));
+tf.addFrame("leg", "world", new Transform(new Vec3(0, 1, 0)));
 
 // Express the leg origin in arm-local coordinates
 const t = tf.getTransform("arm", "leg");
@@ -215,24 +215,24 @@ const copy = TFTree.fromJSON(snapshot);
 
 Benchmarked on Node.js v24 with a 1 000-node graph:
 
-| Scenario | ops / sec |
-|---|---|
+| Scenario                                            | ops / sec  |
+| --------------------------------------------------- | ---------- |
 | `updateTransform` – single leaf (chain depth 1 000) | ~4 364 128 |
-| `getTransform` – world → leaf (full traversal) | ~8 636 |
-| `updateTransforms` – batch 1 000 frames | ~2 560 |
+| `getTransform` – world → leaf (full traversal)      | ~8 636     |
+| `updateTransforms` – batch 1 000 frames             | ~2 560     |
 
 ---
 
 ## Companion Packages
 
-| Package | Description |
-|---|---|
-| [`@tf-engine/react`](https://www.npmjs.com/package/@tf-engine/react) | `useTFFrame` React hook |
-| [`@tf-engine/three`](https://www.npmjs.com/package/@tf-engine/three) | Three.js `Matrix4` / `Object3D` helpers |
-| [`@tf-engine/urdf-loader`](https://www.npmjs.com/package/@tf-engine/urdf-loader) | Load a ROS URDF XML into a `TFTree` |
+| Package                                                                          | Description                             |
+| -------------------------------------------------------------------------------- | --------------------------------------- |
+| [`@tf-engine/react`](https://www.npmjs.com/package/@tf-engine/react)             | `useTFFrame` React hook                 |
+| [`@tf-engine/three`](https://www.npmjs.com/package/@tf-engine/three)             | Three.js `Matrix4` / `Object3D` helpers |
+| [`@tf-engine/urdf-loader`](https://www.npmjs.com/package/@tf-engine/urdf-loader) | Load a ROS URDF XML into a `TFTree`     |
 
 ---
 
 ## License
 
-ISC
+MIT

@@ -15,10 +15,7 @@ import { TFTree, Transform, Vec3, Quaternion } from "@tf-engine/core";
 // the subscription contract and then returns getSnapshot().
 
 vi.mock("react", () => ({
-  useSyncExternalStore: (
-    subscribe: (cb: () => void) => () => void,
-    getSnapshot: () => unknown,
-  ) => {
+  useSyncExternalStore: (subscribe: (cb: () => void) => () => void, getSnapshot: () => unknown) => {
     // Validate that subscribe returns an unsubscribe function.
     const unsub = subscribe(() => {});
     expect(typeof unsub).toBe("function");

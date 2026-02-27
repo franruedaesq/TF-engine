@@ -1,6 +1,7 @@
 import { Transform } from "./math/Transform.js";
 import { TFTree } from "./TFTree.js";
 import { CycleDetectedError } from "./CycleDetectedError.js";
+import { FrameNotFoundError } from "./FrameNotFoundError.js";
 import type { TransformStamped, BufferedTFTreeOptions } from "./types.js";
 
 // ── internal per-frame buffer ─────────────────────────────────────────────────
@@ -174,7 +175,7 @@ export class BufferedTFTree extends TFTree {
    */
   setTransform(id: string, transform: Transform, timestamp: number): void {
     if (!this.hasFrame(id)) {
-      throw new Error(`Frame "${id}" not found.`);
+      throw new FrameNotFoundError(id);
     }
 
     // Keep the base-class current transform in sync so the non-temporal API
@@ -211,10 +212,10 @@ export class BufferedTFTree extends TFTree {
    */
   getTransformAt(from: string, to: string, timestamp: number): Transform {
     if (!this.hasFrame(from)) {
-      throw new Error(`Frame "${from}" not found.`);
+      throw new FrameNotFoundError(from);
     }
     if (!this.hasFrame(to)) {
-      throw new Error(`Frame "${to}" not found.`);
+      throw new FrameNotFoundError(to);
     }
     if (from === to) {
       return Transform.identity();

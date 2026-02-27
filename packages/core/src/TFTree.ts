@@ -9,6 +9,7 @@ import {
   type ChangeCallback,
 } from "./types.js";
 import { CycleDetectedError } from "./CycleDetectedError.js";
+import { FrameNotFoundError } from "./FrameNotFoundError.js";
 
 // ── Rust/WASM backend ──────────────────────────────────────────────────────────
 
@@ -137,7 +138,7 @@ export class TFTree implements ITransformTree {
       throw new Error(`Frame "${id}" is already registered.`);
     }
     if (parentId !== undefined && !this.frames.has(parentId)) {
-      throw new Error(`Parent frame "${parentId}" not found. Register parents before children.`);
+      throw new FrameNotFoundError(parentId);
     }
 
     // Validate the parent chain is cycle-free using the TypeScript Map so that
@@ -176,7 +177,7 @@ export class TFTree implements ITransformTree {
   updateTransform(id: string, transform: Transform): void {
     const frame = this.frames.get(id);
     if (frame === undefined) {
-      throw new Error(`Frame "${id}" not found.`);
+      throw new FrameNotFoundError(id);
     }
     this.frames.set(id, { ...frame, transform });
 
@@ -211,7 +212,7 @@ export class TFTree implements ITransformTree {
     for (const [id, transform] of Object.entries(updates)) {
       const frame = this.frames.get(id);
       if (frame === undefined) {
-        throw new Error(`Frame "${id}" not found.`);
+        throw new FrameNotFoundError(id);
       }
       this.frames.set(id, { ...frame, transform });
     }
@@ -243,7 +244,7 @@ export class TFTree implements ITransformTree {
    */
   removeFrame(id: string): void {
     if (!this.frames.has(id)) {
-      throw new Error(`Frame "${id}" not found.`);
+      throw new FrameNotFoundError(id);
     }
     const children = this.childrenMap.get(id);
     if (children !== undefined && children.size > 0) {
@@ -288,10 +289,10 @@ export class TFTree implements ITransformTree {
    */
   getTransform(from: string, to: string): Transform {
     if (!this.frames.has(from)) {
-      throw new Error(`Frame "${from}" not found.`);
+      throw new FrameNotFoundError(from);
     }
     if (!this.frames.has(to)) {
-      throw new Error(`Frame "${to}" not found.`);
+      throw new FrameNotFoundError(to);
     }
     if (from === to) {
       return Transform.identity();
@@ -341,7 +342,7 @@ export class TFTree implements ITransformTree {
    */
   onChange(frameId: string, callback: ChangeCallback): () => void {
     if (!this.frames.has(frameId)) {
-      throw new Error(`Frame "${frameId}" not found.`);
+      throw new FrameNotFoundError(frameId);
     }
     let listeners = this.changeListeners.get(frameId);
     if (listeners === undefined) {
@@ -419,7 +420,7 @@ export class TFTree implements ITransformTree {
   protected getFrameNode(id: string): FrameNode {
     const frame = this.frames.get(id);
     if (frame === undefined) {
-      throw new Error(`Frame "${id}" not found.`);
+      throw new FrameNotFoundError(id);
     }
     return frame;
   }
