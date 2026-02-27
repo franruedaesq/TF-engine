@@ -25,11 +25,11 @@ A React hook that subscribes to world-transform changes for a **single frame** i
 
 Internally uses `useSyncExternalStore`, so a component re-renders only when **that specific frame** (or one of its ancestors) changes — no unnecessary re-renders for unrelated frame updates.
 
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `tree` | `ITransformTree` | _(required)_ | The `TFTree` or `BufferedTFTree` to observe. |
-| `frameId` | `string` | _(required)_ | The frame id to subscribe to. |
-| `from` | `string` | `frameId` | Source frame for the relative transform query. |
+| Parameter | Type             | Default      | Description                                    |
+| --------- | ---------------- | ------------ | ---------------------------------------------- |
+| `tree`    | `ITransformTree` | _(required)_ | The `TFTree` or `BufferedTFTree` to observe.   |
+| `frameId` | `string`         | _(required)_ | The frame id to subscribe to.                  |
+| `from`    | `string`         | `frameId`    | Source frame for the relative transform query. |
 
 **Returns** `Transform | null` — `null` when the frame is not yet registered.
 
@@ -59,7 +59,7 @@ function RobotMarker() {
       style={{
         position: "absolute",
         left: x * 100,
-        top:  y * 100,
+        top: y * 100,
         width: 20,
         height: 20,
         background: "red",
