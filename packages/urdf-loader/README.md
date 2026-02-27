@@ -43,8 +43,8 @@ const urdf = `
 const tf = loadUrdf(urdf);
 
 tf.hasFrame("base_link"); // true
-tf.hasFrame("shoulder");  // true
-tf.hasFrame("elbow");     // true
+tf.hasFrame("shoulder"); // true
+tf.hasFrame("elbow"); // true
 
 // Resolve elbow position in base_link space
 const t = tf.getTransform("base_link", "elbow");
@@ -57,14 +57,15 @@ t.transformPoint(Vec3.zero()); // Vec3(0, 0, 0.9)
 
 ### `loadUrdf(xml, options?)`
 
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `xml` | `string` | _(required)_ | Full URDF XML string. |
-| `options.addRobotRoot` | `boolean` | `false` | When `true`, adds the robot's `name` attribute as an extra root frame that is the parent of all base links. |
+| Parameter              | Type      | Default      | Description                                                                                                 |
+| ---------------------- | --------- | ------------ | ----------------------------------------------------------------------------------------------------------- |
+| `xml`                  | `string`  | _(required)_ | Full URDF XML string.                                                                                       |
+| `options.addRobotRoot` | `boolean` | `false`      | When `true`, adds the robot's `name` attribute as an extra root frame that is the parent of all base links. |
 
 **Returns** a populated `TFTree`.
 
 **Throws**
+
 - `Error` — if the XML is missing a `<robot>` element.
 - `Error` — if a joint references a link not declared as a `<link>` element.
 
@@ -95,10 +96,7 @@ const tf = loadUrdf(urdf);
 function setElbowAngle(angleRad: number) {
   tf.updateTransform(
     "elbow",
-    new Transform(
-      new Vec3(0, 0, 0.4),
-      Quaternion.fromAxisAngle(new Vec3(0, 0, 1), angleRad),
-    ),
+    new Transform(new Vec3(0, 0, 0.4), Quaternion.fromAxisAngle(new Vec3(0, 0, 1), angleRad)),
   );
 }
 

@@ -283,14 +283,15 @@ Run them yourself with `npm run bench` from the repo root.
 
 Results on a standard CI machine (Node.js v24, Vitest 4):
 
-| Scenario | ops / sec |
-|---|---|
-| `updateTransform` – single leaf frame (linear chain, depth 1 000) | **~4 364 128** |
-| `getTransform` – world → leaf (linear chain, full traversal) | **~8 636** |
-| `updateTransforms` – batch all 1 000 frames (linear chain) | **~2 560** |
-| `updateTransforms` – batch ~1 000 frames (balanced binary tree, depth 10) | **~2 581** |
+| Scenario                                                                  | ops / sec      |
+| ------------------------------------------------------------------------- | -------------- |
+| `updateTransform` – single leaf frame (linear chain, depth 1 000)         | **~4 364 128** |
+| `getTransform` – world → leaf (linear chain, full traversal)              | **~8 636**     |
+| `updateTransforms` – batch all 1 000 frames (linear chain)                | **~2 560**     |
+| `updateTransforms` – batch ~1 000 frames (balanced binary tree, depth 10) | **~2 581**     |
 
 Key takeaways:
+
 - **Single-frame updates** are essentially free — the dirty-flag mechanism propagates lazily so no recomputation happens until `getTransform` is called.
 - **`getTransform`** across a 1 000-node chain (worst case) still exceeds **8 000 ops/sec**, well within real-time robotics requirements.
 - **Batch updates** via `updateTransforms` efficiently skip redundant subtree traversals when ancestors are included in the same batch.
@@ -333,8 +334,8 @@ const urdf = `
 const tf = loadUrdf(urdf);
 
 tf.hasFrame("base_link"); // true
-tf.hasFrame("shoulder");  // true
-tf.hasFrame("elbow");     // true
+tf.hasFrame("shoulder"); // true
+tf.hasFrame("elbow"); // true
 
 // Resolve elbow position in base_link space
 const t = tf.getTransform("base_link", "elbow");
@@ -343,9 +344,9 @@ t.transformPoint(Vec3.zero()); // Vec3(0, 0, 0.9)
 
 #### `loadUrdf(xml, options?)`
 
-| Parameter | Type | Description |
-|---|---|---|
-| `xml` | `string` | Full URDF XML string. |
+| Parameter              | Type      | Description                                                                                                                      |
+| ---------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `xml`                  | `string`  | Full URDF XML string.                                                                                                            |
 | `options.addRobotRoot` | `boolean` | When `true`, adds the robot's `name` attribute as an extra root frame that is the parent of all base links. Defaults to `false`. |
 
 Throws `Error` if the XML is missing a `<robot>` element or if a joint references a link that is not declared.
