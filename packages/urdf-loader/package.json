@@ -38,7 +38,7 @@
     "spatial"
   ],
   "author": "Francisco Rueda Esquivel <franruedaesq>",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/franruedaesq/TF-engine/issues"
   },
