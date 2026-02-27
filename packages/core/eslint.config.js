@@ -49,4 +49,8 @@ export default [
     },
   },
   prettierConfig,
+  // Ignore generated Rust/WASM artefacts.
+  {
+    ignores: ["src/wasm/pkg/**"],
+  },
 ];

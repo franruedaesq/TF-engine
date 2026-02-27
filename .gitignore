@@ -2,3 +2,5 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+# Rust build artifacts
+packages/core/rust/target/
