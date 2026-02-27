@@ -41,6 +41,9 @@
     "url": "https://github.com/franruedaesq/TF-engine/issues"
   },
   "homepage": "https://github.com/franruedaesq/TF-engine#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
     "@eslint/js": "^10.0.1",

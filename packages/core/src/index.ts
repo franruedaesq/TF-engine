@@ -4,6 +4,7 @@ export { Transform } from "./math/Transform.js";
 export { TFTree } from "./TFTree.js";
 export { BufferedTFTree } from "./BufferedTFTree.js";
 export { CycleDetectedError } from "./CycleDetectedError.js";
+export { FrameNotFoundError } from "./FrameNotFoundError.js";
 export type {
   ITransform,
   FrameNode,

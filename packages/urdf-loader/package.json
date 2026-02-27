@@ -43,6 +43,9 @@
     "url": "https://github.com/franruedaesq/TF-engine/issues"
   },
   "homepage": "https://github.com/franruedaesq/TF-engine#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "@tf-engine/core": "*"
   },
