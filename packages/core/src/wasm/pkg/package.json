@@ -1,0 +1,13 @@
+{
+  "name": "tf-engine-core",
+  "description": "Rust/WASM core for tf-engine: high-performance transform tree",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "index_bg.wasm",
+    "index.js",
+    "index.d.ts"
+  ],
+  "main": "index.js",
+  "types": "index.d.ts"
+}

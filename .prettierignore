@@ -2,3 +2,6 @@ dist/
 coverage/
 node_modules/
 *.tsbuildinfo
+# Generated Rust/WASM artefacts
+packages/core/src/wasm/pkg/
+packages/core/rust/target/

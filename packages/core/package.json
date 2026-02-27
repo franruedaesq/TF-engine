@@ -23,7 +23,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build": "tsup src/index.ts --format cjs,esm --dts --shims && mkdir -p dist/wasm && cp -r src/wasm/pkg dist/wasm/",
+    "build:rust": "cd rust && wasm-pack build --target nodejs --out-dir ../src/wasm/pkg --out-name index",
     "prepublishOnly": "npm run build && npm test",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
@@ -48,6 +49,7 @@
     "gl-matrix": "^3.4.4"
   },
   "devDependencies": {
+    "@types/node": "^25.3.2",
     "@vitest/coverage-v8": "^4.0.18",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",

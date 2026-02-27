@@ -1,3 +1,4 @@
+import { createRequire } from "module";
 import { Transform } from "./math/Transform.js";
 import { Vec3 } from "./math/Vec3.js";
 import { Quaternion } from "./math/Quaternion.js";
@@ -9,12 +10,83 @@ import {
 } from "./types.js";
 import { CycleDetectedError } from "./CycleDetectedError.js";
 
+// ── Rust/WASM backend ──────────────────────────────────────────────────────────
+
+/**
+ * Shape of a `TfTreeWasm` instance produced by the Rust/wasm-bindgen layer.
+ * Mirrors the public API declared in `packages/core/rust/src/lib.rs`.
+ */
+interface WasmTfTreeInstance {
+  add_frame(
+    id: string,
+    parent_id: string | null | undefined,
+    tx: number,
+    ty: number,
+    tz: number,
+    rx: number,
+    ry: number,
+    rz: number,
+    rw: number,
+  ): void;
+  /** Returns an Array of stale frame IDs (updated frame + its whole subtree). */
+  update_frame(
+    id: string,
+    tx: number,
+    ty: number,
+    tz: number,
+    rx: number,
+    ry: number,
+    rz: number,
+    rw: number,
+  ): string[];
+  /** Batch variant – updates_json is a JSON array of {id,tx,ty,tz,rx,ry,rz,rw}. */
+  update_frames_batch(updates_json: string): string[];
+  remove_frame(id: string): void;
+  /** Returns [tx, ty, tz, rx, ry, rz, rw]. */
+  get_transform(from: string, to: string): Float64Array;
+  has_frame(id: string): boolean;
+  has_children(id: string): boolean;
+  to_json(): string;
+  free(): void;
+}
+
+interface WasmTfTreeConstructor {
+  new (): WasmTfTreeInstance;
+  from_json(json: string): WasmTfTreeInstance;
+}
+
+/**
+ * Load the compiled WASM module synchronously.
+ *
+ * The generated --target nodejs package uses fs.readFileSync +
+ * new WebAssembly.Module(bytes), which is synchronous, so this is safe to
+ * call at module initialisation time without await.
+ *
+ * createRequire bridges Node.js ESM to the CJS package emitted by wasm-pack.
+ */
+function loadWasmBackend(): WasmTfTreeConstructor {
+  const requireFn = createRequire(import.meta.url);
+  const pkg = requireFn("./wasm/pkg/index.js") as {
+    TfTreeWasm: WasmTfTreeConstructor;
+  };
+  return pkg.TfTreeWasm;
+}
+
+const WasmBackend: WasmTfTreeConstructor = loadWasmBackend();
+
+// ── TFTree ────────────────────────────────────────────────────────────────────
+
 /**
  * TFTree – a directed acyclic graph (tree) of named reference frames.
  *
  * Each frame stores how it relates to its **parent** frame via a
  * {@link Transform} (translation + rotation).  The tree can then resolve
  * the relative transform between **any** two frames at O(depth) cost.
+ *
+ * Internally the heavy math (world-transform caching and composition) is
+ * delegated to a Rust/WebAssembly module compiled with glam.  The TypeScript
+ * layer retains a frames Map for cycle detection and preserves insertion-order
+ * for serialisation, ensuring full backward compatibility.
  *
  * @example
  * ```ts
@@ -27,11 +99,25 @@ import { CycleDetectedError } from "./CycleDetectedError.js";
  * ```
  */
 export class TFTree implements ITransformTree {
+  /** Frame metadata kept in insertion order for frameIds() and toJSON(). */
   private readonly frames = new Map<string, FrameNode>();
-  private readonly dirtySet = new Set<string>();
-  private readonly worldTransformCache = new Map<string, Transform>();
+  /**
+   * Adjacency list – maintained in TypeScript so that removeFrame can check
+   * for children without an extra Rust round-trip and so that the onChange
+   * subscription list can be cleaned up efficiently.
+   */
   private readonly childrenMap = new Map<string, Set<string>>();
   private readonly changeListeners = new Map<string, Set<ChangeCallback>>();
+
+  /**
+   * Rust/WASM backend – owns the world-transform cache, dirty tracking, and
+   * all heavy quaternion math.  Created synchronously at construction time.
+   */
+  protected readonly wasmTree: WasmTfTreeInstance;
+
+  constructor() {
+    this.wasmTree = new WasmBackend();
+  }
 
   // ── frame registration ─────────────────────────────────────────────────────
 
@@ -39,11 +125,11 @@ export class TFTree implements ITransformTree {
    * Register a new frame.
    *
    * @param id       Unique identifier for this frame.
-   * @param parentId Id of the parent frame.  Omit (or pass `undefined`) for a
+   * @param parentId Id of the parent frame.  Omit (or pass undefined) for a
    *                 root frame.  There may be multiple root frames.
    * @param transform Transform expressing this frame relative to its parent.
    *                  Defaults to the identity transform.
-   * @throws {Error} if `id` is already registered or `parentId` is not found.
+   * @throws {Error} if id is already registered or parentId is not found.
    * @throws {CycleDetectedError} if adding this frame would introduce a cycle.
    */
   addFrame(id: string, parentId?: string, transform: Transform = Transform.identity()): void {
@@ -54,8 +140,8 @@ export class TFTree implements ITransformTree {
       throw new Error(`Parent frame "${parentId}" not found. Register parents before children.`);
     }
 
-    // Check that the parent's chain to root does not already contain `id`,
-    // which would create a cycle and violate the DAG invariant.
+    // Validate the parent chain is cycle-free using the TypeScript Map so that
+    // tests which directly manipulate the internal Map are detected correctly.
     if (parentId !== undefined) {
       let current: string | undefined = parentId;
       while (current !== undefined) {
@@ -69,20 +155,23 @@ export class TFTree implements ITransformTree {
     const node: FrameNode =
       parentId !== undefined ? { id, parentId, transform } : { id, transform };
     this.frames.set(id, node);
-    this.dirtySet.add(id);
-    // Register in children map.
+
     if (!this.childrenMap.has(id)) {
       this.childrenMap.set(id, new Set());
     }
     if (parentId !== undefined) {
       this.childrenMap.get(parentId)!.add(id);
     }
+
+    // Sync to the Rust backend.
+    const { translation: t, rotation: r } = transform;
+    this.wasmTree.add_frame(id, parentId ?? null, t.x, t.y, t.z, r.x, r.y, r.z, r.w);
   }
 
   /**
    * Update the transform of an existing frame.
    *
-   * @throws {Error} if `id` is not registered.
+   * @throws {Error} if id is not registered.
    */
   updateTransform(id: string, transform: Transform): void {
     const frame = this.frames.get(id);
@@ -90,13 +179,18 @@ export class TFTree implements ITransformTree {
       throw new Error(`Frame "${id}" not found.`);
     }
     this.frames.set(id, { ...frame, transform });
-    this.markSubtreeDirty(id);
+
+    const { translation: t, rotation: r } = transform;
+    const dirtyIds = this.wasmTree.update_frame(id, t.x, t.y, t.z, r.x, r.y, r.z, r.w) as string[];
+    for (const dirtyId of dirtyIds) {
+      this.fireChangeListeners(dirtyId);
+    }
   }
 
   /**
    * Alias for {@link updateTransform} – satisfies the {@link ITransformTree} interface.
    *
-   * @throws {Error} if `id` is not registered.
+   * @throws {Error} if id is not registered.
    */
   updateFrame(id: string, transform: Transform): void {
     this.updateTransform(id, transform);
@@ -110,10 +204,10 @@ export class TFTree implements ITransformTree {
    * whose ancestor is also included in the same batch, preventing redundant
    * subtree traversals.
    *
-   * @throws {Error} if any id in `updates` is not registered.
+   * @throws {Error} if any id in updates is not registered.
    */
   updateTransforms(updates: Record<string, Transform>): void {
-    // First pass: apply all transform changes (validates every id up-front).
+    // First pass: validate and update the TypeScript Map.
     for (const [id, transform] of Object.entries(updates)) {
       const frame = this.frames.get(id);
       if (frame === undefined) {
@@ -122,23 +216,21 @@ export class TFTree implements ITransformTree {
       this.frames.set(id, { ...frame, transform });
     }
 
-    // Second pass: mark subtrees dirty, but skip frames whose ancestor is
-    // also being updated in this batch – the ancestor's markSubtreeDirty
-    // call will already cover those descendants.
-    const ids = new Set(Object.keys(updates));
-    for (const id of ids) {
-      let parentId = this.frames.get(id)?.parentId;
-      let ancestorUpdated = false;
-      while (parentId !== undefined) {
-        if (ids.has(parentId)) {
-          ancestorUpdated = true;
-          break;
-        }
-        parentId = this.frames.get(parentId)?.parentId;
-      }
-      if (!ancestorUpdated) {
-        this.markSubtreeDirty(id);
-      }
+    // Build the batch payload for Rust (handles ancestor-deduplication).
+    const payload = Object.entries(updates).map(([id, t]) => ({
+      id,
+      tx: t.translation.x,
+      ty: t.translation.y,
+      tz: t.translation.z,
+      rx: t.rotation.x,
+      ry: t.rotation.y,
+      rz: t.rotation.z,
+      rw: t.rotation.w,
+    }));
+
+    const dirtyIds = this.wasmTree.update_frames_batch(JSON.stringify(payload)) as string[];
+    for (const dirtyId of dirtyIds) {
+      this.fireChangeListeners(dirtyId);
     }
   }
 
@@ -146,31 +238,29 @@ export class TFTree implements ITransformTree {
    * Remove a registered frame from the tree.
    *
    * @param id Identifier of the frame to remove.
-   * @throws {Error} if `id` is not registered.
+   * @throws {Error} if id is not registered.
    * @throws {Error} if the frame still has child frames registered.
    */
   removeFrame(id: string): void {
     if (!this.frames.has(id)) {
       throw new Error(`Frame "${id}" not found.`);
     }
-    for (const frame of this.frames.values()) {
-      if (frame.parentId === id) {
-        throw new Error(
-          `Cannot remove frame "${id}": it still has child frames. Remove children first.`,
-        );
-      }
+    const children = this.childrenMap.get(id);
+    if (children !== undefined && children.size > 0) {
+      throw new Error(
+        `Cannot remove frame "${id}": it still has child frames. Remove children first.`,
+      );
     }
+
     const { parentId } = this.frames.get(id)!;
     this.frames.delete(id);
-    this.worldTransformCache.delete(id);
-    this.dirtySet.delete(id);
-    // Clean up children map.
     this.childrenMap.delete(id);
     if (parentId !== undefined) {
       this.childrenMap.get(parentId)?.delete(id);
     }
-    // Clean up change listeners.
     this.changeListeners.delete(id);
+
+    this.wasmTree.remove_frame(id);
   }
 
   // ── query ──────────────────────────────────────────────────────────────────
@@ -180,20 +270,21 @@ export class TFTree implements ITransformTree {
     return this.frames.has(id);
   }
 
-  /** Returns all registered frame ids. */
+  /** Returns all registered frame ids in insertion order. */
   frameIds(): string[] {
     return Array.from(this.frames.keys());
   }
 
   /**
-   * Compute the transform that maps points expressed in `from` to the
-   * coordinate system of `to`.
+   * Compute the transform that maps points expressed in from to the
+   * coordinate system of to.
    *
-   * In other words the returned transform `T` satisfies:
-   *   `p_to = T.transformPoint(p_from)`
+   * In other words the returned transform T satisfies:
+   *   p_to = T.transformPoint(p_from)
    *
    * @throws {Error} if either frame is not registered or if the frames are
    *                 not connected in the same tree.
+   * @throws {CycleDetectedError} if a cycle is detected in the frame graph.
    */
   getTransform(from: string, to: string): Transform {
     if (!this.frames.has(from)) {
@@ -206,7 +297,9 @@ export class TFTree implements ITransformTree {
       return Transform.identity();
     }
 
-    // Walk each frame up to the root and collect the chain as (id → index).
+    // Walk each frame up to the root using the TypeScript Map.  This ensures
+    // that cycles injected directly into the Map (e.g. in tests) are detected
+    // here in TypeScript before the Rust layer is ever called.
     const fromChain = this.chainToRoot(from);
     const toChain = this.chainToRoot(to);
 
@@ -225,21 +318,26 @@ export class TFTree implements ITransformTree {
       throw new Error(`Frames "${from}" and "${to}" are not connected in the same tree.`);
     }
 
-    // Use cached world transforms to compute the relative transform.
-    return this.getWorldTransform(from).invert().compose(this.getWorldTransform(to));
+    // Delegate the actual world-transform computation to Rust (uses glam
+    // SIMD math with an internal dirty-tracking cache for efficiency).
+    const raw = this.wasmTree.get_transform(from, to);
+    return new Transform(
+      new Vec3(raw[0], raw[1], raw[2]),
+      new Quaternion(raw[3], raw[4], raw[5], raw[6]),
+    );
   }
 
   // ── event subscription ─────────────────────────────────────────────────────
 
   /**
-   * Subscribe to world-transform changes for `frameId`.
+   * Subscribe to world-transform changes for frameId.
    *
-   * The `callback` is fired whenever the world transform of `frameId` changes —
-   * either because `frameId` itself was updated via {@link updateTransform} /
+   * The callback is fired whenever the world transform of frameId changes —
+   * either because frameId itself was updated via {@link updateTransform} /
    * {@link updateFrame}, or because any of its ancestor frames was updated.
    *
    * @returns An unsubscribe function that removes the listener when called.
-   * @throws {Error} if `frameId` is not registered.
+   * @throws {Error} if frameId is not registered.
    */
   onChange(frameId: string, callback: ChangeCallback): () => void {
     if (!this.frames.has(frameId)) {
@@ -316,7 +414,7 @@ export class TFTree implements ITransformTree {
    * Returns the {@link FrameNode} for the given id.
    * Subclasses may use this to walk the frame hierarchy.
    *
-   * @throws {Error} if `id` is not registered.
+   * @throws {Error} if id is not registered.
    */
   protected getFrameNode(id: string): FrameNode {
     const frame = this.frames.get(id);
@@ -329,51 +427,23 @@ export class TFTree implements ITransformTree {
   // ── private helpers ────────────────────────────────────────────────────────
 
   /**
-   * Mark a frame and all of its descendants as dirty, invalidating their
-   * cached world transforms so they are recomputed on next access.
+   * Fire all change-listeners registered for frameId.
    */
-  private markSubtreeDirty(id: string): void {
-    this.dirtySet.add(id);
-    this.worldTransformCache.delete(id);
-    // Notify subscribers watching this frame.
-    const listeners = this.changeListeners.get(id);
+  private fireChangeListeners(frameId: string): void {
+    const listeners = this.changeListeners.get(frameId);
     if (listeners !== undefined) {
       for (const cb of listeners) {
-        cb(id);
+        cb(frameId);
       }
     }
-    for (const childId of this.childrenMap.get(id) ?? []) {
-      this.markSubtreeDirty(childId);
-    }
   }
 
   /**
-   * Returns the cached world transform for `id`, recomputing and caching it
-   * if the frame is dirty.  The world transform is the accumulated transform
-   * from the subtree root down to this frame.
-   */
-  private getWorldTransform(id: string, visiting = new Set<string>()): Transform {
-    if (!this.dirtySet.has(id)) {
-      const cached = this.worldTransformCache.get(id);
-      if (cached !== undefined) return cached;
-    }
-    if (visiting.has(id)) {
-      throw new CycleDetectedError(id);
-    }
-    visiting.add(id);
-    const frame = this.frames.get(id)!;
-    const worldTransform =
-      frame.parentId === undefined
-        ? frame.transform
-        : this.getWorldTransform(frame.parentId, visiting).compose(frame.transform);
-    this.worldTransformCache.set(id, worldTransform);
-    this.dirtySet.delete(id);
-    return worldTransform;
-  }
-
-  /**
-   * Returns the ordered list of frame ids from `id` up to (and including)
-   * the root frame, i.e. `[id, parent, grandparent, …, root]`.
+   * Returns the ordered list of frame ids from id up to (and including)
+   * the root frame, i.e. [id, parent, grandparent, ..., root].
+   *
+   * Uses the TypeScript frames Map so that cycles injected directly into
+   * the Map are detected even when the Rust backend is out of sync.
    */
   private chainToRoot(id: string): string[] {
     const chain: string[] = [];
