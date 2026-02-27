@@ -6,69 +6,100 @@ The primary goal is to improve performance and safety while maintaining **100% b
 Users of the library should not need to change any code when upgrading.
 
 ## 2. Backward Compatibility (Functional Parity)
-The most critical requirement is that the public API remains identical.
+The public API must remain **identical** in types, signatures, and behavior.
 
-### 2.1 API Interface
-- **Types**: Ensure all exported types (`TFTree`, `BufferedTFTree`, `Transform`, `Vec3`, `Quaternion`, `ITransformTree`) match the previous definitions exactly.
-- **Signatures**: Verify function signatures (arguments, return types) are unchanged.
+### 2.1 Critical Test Scenarios
+These existing tests in `packages/core/tests/` **must pass** without modification:
+- **`TFTree.test.ts`**:
+    - `addFrame` / `removeFrame`: Verify correct graph construction and teardown.
+    - `getTransform(from, to)`: Verify correct computation across various depths (parent->child, child->parent, siblings, cousins).
+    - `updateTransform`: Verify updates propagate correctly to `getTransform` results.
+    - `onChange`: Verify listeners are triggered only when relevant frames (or ancestors) change.
+    - `CycleDetectedError`: Verify cycles are detected and throw the correct error class.
+    - `Disconnected Graphs`: Verify `getTransform` throws when frames are in separate trees.
+- **`BufferedTFTree.test.ts`**:
+    - `getTransformAt(time)`: Verify interpolation (LERP/SLERP) works correctly between timestamps.
+    - `maxBufferDuration`: Verify old data is pruned correctly.
 
-### 2.2 Behavioral Equivalence
-- **Existing Tests**: The existing Vitest suite (`packages/core/tests/`) must pass without modification.
-    - `TFTree.test.ts`: CRUD operations, hierarchy, cycle detection.
-    - `BufferedTFTree.test.ts`: Time-based interpolation, buffer pruning.
-    - `Transform.test.ts`, `Vec3.test.ts`, `Quaternion.test.ts`: Math operations.
-- **Edge Cases**:
-    - **Cycle Detection**: Ensure `CycleDetectedError` is thrown correctly (and is the same class).
-    - **Disconnected Graphs**: `getTransform` should throw specific errors for unconnected frames.
-    - **Re-adding Frames**: Behavior when adding a frame that was previously removed.
+### 2.2 API Type Checking
+- **Type Definitions**: Create a `dts-test.ts` file that imports all exports and asserts they match expected signatures (e.g., using `tsd` or simply compiling it).
+    - `new TFTree()` (synchronous constructor).
+    - `addFrame(id: string, parentId?: string, transform?: Transform): void`.
+    - `getTransform(from: string, to: string): Transform`.
 
 ## 3. WASM Specifics
 
 ### 3.1 Environment & Loading
 One of the biggest challenges with WASM is loading, which is often asynchronous in browsers.
-- **Node.js**:
-    - Verify synchronous loading works as it does now (using `fs.readFileSync` + `new WebAssembly.Module`).
-    - The `new TFTree()` constructor must remain synchronous.
-- **Browser (Bundlers)**:
-    - **Vite/Webpack**: Create integration tests using these bundlers to ensure the WASM module loads correctly.
-    - **Async vs Sync**: Investigate if `await init()` is required. If so, document how to maintain the synchronous `new TFTree()` API (e.g., internal lazy loading or a global init function).
-    - **WASM File Serving**: Ensure the `.wasm` file is correctly located and served by the bundler.
 
-### 3.2 Performance & Overhead
-WASM has a call overhead. We need to measure where it helps and where it might hurt.
-- **Micro-benchmarks (Overhead)**:
-    - Measure the cost of `getTransform` on a very shallow tree (depth 1 or 2). This tests the JS-WASM boundary cost.
-    - Goal: Ensure overhead is negligible for simple cases.
-- **Macro-benchmarks (Throughput)**:
-    - **Deep Trees**: Measure `getTransform` on deep chains (100+ frames). Rust should outperform JS here.
-    - **Batch Updates**: Measure `updateTransforms` with 1000+ updates. The Rust implementation should significantly outperform JS by minimizing traversals.
-    - **Creation/Destruction**: Cost of creating and garbage collecting `TFTree` instances.
+#### **Node.js Integration**
+- **Test**: Create a `test-node-require.js` script.
+    - Verify `require('@tf-engine/core')` works in a plain Node script without extra flags.
+    - Verify `import { TFTree } from '@tf-engine/core'` works in an ESM Node script.
+    - **Goal**: Ensure the synchronous `fs.readFileSync` based loading works seamlessly.
+
+#### **Browser Integration (Vite/Webpack)**
+- **Test**: Create a minimal Vite project in `packages/core/tests/browser-integration`.
+    - `index.html` imports `main.ts`.
+    - `main.ts` imports `TFTree`, instantiates it, and logs a transform.
+    - Run `vite build` and `vite preview`.
+    - **Goal**: Ensure the WASM module is correctly bundled and loaded (handling async instantiation if necessary, though ideally hidden behind a sync API or top-level await if supported).
+    - **Challenge**: The synchronous `new TFTree()` API might require a global `await init()` or similar if synchronous WASM instantiation isn't feasible in all target browsers.
+
+### 3.2 Performance Benchmarks
+We need to quantify the trade-offs of using WASM.
+
+#### **Micro-benchmarks (Boundary Overhead)**
+- **Test**: `bench-overhead.ts` (using `vitest bench`).
+    - **Scenario**: Create a tree with 2 frames (World -> Robot).
+    - **Operation**: Call `getTransform('world', 'robot')` 1,000,000 times.
+    - **Expectation**: WASM overhead (crossing JS <-> Rust boundary) should be minimal (< 2x slower than pure JS). If it's significantly slower, we might need to optimize the binding interface (e.g., using `Float64Array` views instead of returning objects).
+
+#### **Macro-benchmarks (Throughput)**
+- **Test**: `bench-heavy.ts`.
+    - **Scenario**: Deep hierarchy (Depth 100) or massive flat tree (10,000 children).
+    - **Operation**: Update 1,000 frames using `updateTransforms` (batch update).
+    - **Expectation**: Rust should be **significantly faster (> 5x)** due to efficient graph traversal and lack of GC overhead for intermediate calculations.
 
 ### 3.3 Memory Safety
-- **Leak Detection**:
-    - Create a test that instantiates and discards thousands of `TFTree` objects.
-    - Monitor memory usage to ensuring the WASM memory (linear memory) is freed or reused correctly.
-    - Verify `free()` (if exposed) is called or managed automatically by `FinalizationRegistry`.
+- **Test**: `test-memory-leak.ts`.
+    - **Scenario**: Run a loop 10,000 times:
+        - `const tf = new TFTree();`
+        - Add 100 frames.
+        - `tf = null;` (dereference).
+        - Trigger GC (if possible in test env) or wait.
+    - **Measurement**: Monitor `process.memoryUsage().heapUsed` and `external`.
+    - **Goal**: Ensure the underlying WASM memory is freed. Rust's `Drop` trait should handle cleanup, but we need to verify `wasm-bindgen` correctly calls `free()`.
 
 ## 4. Ecosystem Integration
-The core package is used by other packages in the monorepo.
 
 ### 4.1 `@tf-engine/react`
-- **Hooks**: Verify `useTFFrame` works seamlessly.
-- **Re-renders**: Ensure subscriptions (`onChange`) fire correctly and trigger React updates.
+- **Test**: `react-render-test.tsx`.
+    - Mount a component: `<RobotViewer tf={tf} />` which uses `useTFFrame(tf, 'robot')`.
+    - Update `tf` transform.
+    - Assert: Component re-renders exactly **once** with the new value.
+    - Assert: Unmounting the component unsubscribes correctly (no errors on subsequent updates).
 
 ### 4.2 `@tf-engine/three`
-- **Object3D**: Verify `applyToObject3D` correctly updates Three.js objects.
-- **Matrix4**: Verify `toMatrix4` produces the correct matrix.
+- **Test**: `three-integration.ts`.
+    - Create a `THREE.Object3D`.
+    - Call `applyToObject3D(tf.getTransform(...), obj)`.
+    - Assert: `obj.matrix` matches the expected 4x4 matrix.
+    - Assert: `obj.matrixAutoUpdate` is set to `false`.
 
 ### 4.3 `@tf-engine/urdf-loader`
-- **URDF Parsing**: Verify `loadUrdf` correctly populates the Rust-backed `TFTree` from XML input.
-- **Large Robots**: Test with complex URDFs (e.g., humanoid robots) to verify performance and correctness.
+- **Test**: `urdf-loading.ts`.
+    - Load a complex URDF string (e.g., a 6-DOF arm).
+    - Verify the resulting `TFTree` has the correct structure and initial transforms.
+    - Verify `getTransform` matches manual calculation for a specific joint configuration.
 
 ## 5. Build & CI
 - **Toolchain**:
-    - Verify `wasm-pack` is installed or available in the CI environment.
-    - Ensure `npm run build` in `core` correctly invokes the Rust build.
+    - Verify `wasm-pack` build succeeds in CI (GitHub Actions).
+    - Ensure `npm run build` generates:
+        - `dist/index.js` (ESM)
+        - `dist/index.cjs` (CJS)
+        - `dist/index.d.ts` (Types)
+        - `dist/tf_engine_core_bg.wasm` (Binary)
 - **Artifacts**:
-    - Check that the `dist/` folder contains both the JS bindings and the `.wasm` file.
-    - Verify the `package.json` exports point to the correct files.
+    - Check `package.json` `files` array includes `dist/` and `src/` (for source maps).
